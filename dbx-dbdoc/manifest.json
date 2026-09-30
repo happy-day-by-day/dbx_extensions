@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/t8y2/dbx/main/plugins/manifest.schema.json",
+  "manifest_version": 1,
+  "id": "com.sazs.dbdoc",
+  "name": "数据库文档",
+  "version": "0.4.1",
+  "icon": "assets/icon.svg",
+  "publisher": "sazs",
+  "description": "数据字典浏览器：表清单、字段注释、索引、建表 SQL 与 Markdown 导出",
+  "engines": { "host_api": "^1.4" },
+  "permissions": ["host.events", "host.data:read", "host.schema:read", "host.storage"],
+  "entrypoints": { "ui": { "root": "ui", "entry": "ui/index.html" } },
+  "contributions": [
+    { "type": "workbench", "id": "com.sazs.dbdoc.main", "label": "数据库文档", "icon": "assets/icon.svg" },
+    { "type": "context-menu", "id": "com.sazs.dbdoc.open-connection", "label": "查看数据库文档", "menu": "connection", "action": { "type": "open-workbench", "workbench": "com.sazs.dbdoc.main" } },
+    { "type": "context-menu", "id": "com.sazs.dbdoc.open-table", "label": "查看表文档", "menu": "table", "action": { "type": "open-workbench", "workbench": "com.sazs.dbdoc.main" } }
+  ]
+}
