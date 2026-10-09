@@ -158,7 +158,8 @@ export const postgresAdapter: DialectAdapter = {
       AND ${schemaCondition('ns.nspname', ref.schema)} AND rel.relname = ${sqlLiteral(table)}
     ORDER BY table_schema, table_name, constraint_name, seq`,
   searchColumns: (ref: TableRef, keyword: string) => `
-    SELECT DISTINCT c.table_schema AS table_schema, c.table_name AS table_name
+    SELECT DISTINCT c.table_schema AS table_schema, c.table_name AS table_name,
+      c.column_name AS column_name, COALESCE(col_description(rel.oid, c.ordinal_position::int), '') AS column_comment
     FROM information_schema.columns AS c
     JOIN pg_namespace AS ns ON ns.nspname = c.table_schema
     JOIN pg_class AS rel ON rel.relnamespace = ns.oid AND rel.relname = c.table_name

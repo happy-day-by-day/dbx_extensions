@@ -225,7 +225,7 @@
             <div class="database-heading-actions"><button class="text-btn" bind:this={nameEditButton} aria-label="修改连接显示名称" disabled={nameSaving || openingDatabase !== null} onclick={() => void editName()}><Icon name="edit" size={14} />修改连接名称</button>
               <button class="icon-btn" aria-label="刷新数据库列表" title="刷新数据库列表" disabled={databaseLoading || openingDatabase !== null || nameSaving} onclick={() => void selectConnection(selectedId)}><Icon name="refresh" size={17} /></button></div>
           </div>
-          {#if editingName}<form class="connection-name-editor" onsubmit={(event) => { event.preventDefault(); void saveName() }}>
+          {#if editingName}<form class="connection-name-editor" novalidate onsubmit={(event) => { event.preventDefault(); void saveName() }}>
             <label for="connection-display-name">连接显示名称</label><input id="connection-display-name" bind:this={nameInput} bind:value={nameDraft} oninput={() => (nameError = '')} maxlength="80" autocomplete="off" disabled={nameSaving} placeholder="例如：业务开发环境" />
             <div class="name-editor-footer"><span>只修改本插件中的显示名称。</span><div><button type="button" class="btn" disabled={nameSaving} onclick={cancelNameEdit}>取消</button><button class="btn btn-primary" type="submit" disabled={nameSaving}>{nameSaving ? '保存中…' : '保存名称'}</button></div></div>
             {#if nameError}<p role="alert">{nameError}</p>{/if}

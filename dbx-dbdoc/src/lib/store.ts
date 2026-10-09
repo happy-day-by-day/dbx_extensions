@@ -7,6 +7,7 @@ import type { DbColumn, DbConstraint, DbIndex, DbTable } from './dialects/entiti
 import { rowsToObjects } from './dialects/shared'
 import { isDataAccessDenied, isConnectionNotOpen } from './bridge'
 import type { TableDetail } from './markdown'
+import { groupColumnMatches, type ColumnMatch } from './display/columnSearch'
 
 const MAX_ROWS = 5000
 
@@ -229,6 +230,14 @@ export async function searchColumnHits(
   return new Set(rows.map((row) => `${String(row.table_schema ?? '')}.${String(row.table_name ?? '')}`))
 }
 
+export async function searchColumnMatches(
+  bridge: DbxBridge, adapter: DialectAdapter, connectionId: string, ref: TableRef, keyword: string,
+  onTruncated?: () => void
+): Promise<Map<string, ColumnMatch[]>> {
+  if (!keyword.trim()) return new Map()
+  return groupColumnMatches(await runQuery(bridge, connectionId, ref, adapter.searchColumns(ref, keyword), onTruncated))
+}
+
 // 未实现枚举的方言返回空列表；选择器使用 strict 保留读取错误以显示重试入口。
 export async function listDatabases(
   bridge: DbxBridge,
@@ -312,6 +321,7 @@ export interface Loaders {
   loadCatalog(bridge: DbxBridge, adapter: DialectAdapter, connectionId: string, ref: TableRef): Promise<CatalogData>
   loadDetail(bridge: DbxBridge, adapter: DialectAdapter, connectionId: string, ref: TableRef, schema: string, table: string): Promise<TableDetail>
   searchColumnHits(bridge: DbxBridge, adapter: DialectAdapter, connectionId: string, ref: TableRef, keyword: string): Promise<Set<string>>
+  searchColumnMatches(bridge: DbxBridge, adapter: DialectAdapter, connectionId: string, ref: TableRef, keyword: string): Promise<Map<string, ColumnMatch[]>>
   exportSchema(bridge: DbxBridge, adapter: DialectAdapter, connectionId: string, ref: TableRef, tables: DbTable[], opts: ExportSchemaOptions): Promise<ExportSchemaResult>
 }
 

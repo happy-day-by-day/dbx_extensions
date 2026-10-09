@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createSessionCache, exportSchema, listDatabases, loadCatalog, loadDetail, runConcurrentQueue, searchColumnHits } from './store'
+import { createSessionCache, exportSchema, listDatabases, loadCatalog, loadDetail, runConcurrentQueue, searchColumnHits, searchColumnMatches } from './store'
 import type { DbxBridge, QueryResult } from './types'
 
 const result = (columns: string[], rows: unknown[][]): QueryResult => ({ dbType: 'mysql', columns: columns.map((name) => ({ name, dataType: 'varchar' })), rows, truncated: false })
@@ -140,6 +140,18 @@ describe('loaders', () => {
     const hits = await searchColumnHits(bridge, adapter, 'c1', ref, 'id', onTruncated)
     expect([...hits]).toEqual(['shop.orders'])
     expect(onTruncated).toHaveBeenCalledOnce()
+  })
+  it('字段搜索返回可高亮的名称和注释，携带连接与库范围，空关键词不查询', async () => {
+    const bridge = mkBridge()
+    bridge.queryData.mockResolvedValue(result(['table_schema', 'table_name', 'column_name', 'column_comment'], [
+      ['shop', 'orders', 'user_id', '下单用户'], ['sales', 'orders', 'user_id', '采购人']
+    ]))
+    const matches = await searchColumnMatches(bridge, adapter, 'c1', ref, 'user_id')
+    expect([...matches.values()]).toEqual([[{ name: 'user_id', comment: '下单用户' }], [{ name: 'user_id', comment: '采购人' }]])
+    expect(bridge.queryData.mock.calls[0][0]).toMatchObject({ connectionId: 'c1', database: 'shop' })
+    expect(bridge.queryData.mock.calls[0][0].sql).toContain('COLUMN_COMMENT AS column_comment')
+    await searchColumnMatches(bridge, adapter, 'c1', ref, '   ')
+    expect(bridge.queryData).toHaveBeenCalledOnce()
   })
   it('loadDetail 以 schema 形参过滤详情查询（pg 同名表不跨 schema 合并）', async () => {
     const bridge = mkBridge('postgres')

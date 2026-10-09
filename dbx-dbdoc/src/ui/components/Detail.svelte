@@ -26,10 +26,14 @@
   let degradedError = $state('')
   let degradedNonce = $state(0)
   let body = $state<HTMLDivElement>()
+  let fieldSearchInput = $state<HTMLInputElement>()
   const columns = $derived(app.degraded ? degradedColumns : app.detail?.columns ?? [])
   const indexGroups = $derived(groupRows(app.detail?.indexes ?? [], (row) => row.index_name))
   const constraintGroups = $derived(groupRows(app.detail?.constraints ?? [], (row) => row.constraint_name))
   const pattern = $derived(compileFilterPattern(keyword.trim()).regex)
+  // 目录关键词只参与高亮；字段过滤只使用右侧手动输入的关键词。
+  const fieldHighlightPattern = $derived(compileFilterPattern(keyword.trim() || (!app.catalogSearch.regexMode ? app.catalogSearch.keyword : '')).regex)
+  const tablePattern = $derived(compileFilterPattern(app.catalogSearch.keyword, app.catalogSearch.regexMode).regex)
   const filteredColumns = $derived(columns.filter((column) => {
     if (uncommented && column.column_comment.trim()) return false
     return !pattern || [column.column_name, column.column_type, column.column_comment, column.column_default ?? ''].some((value) => pattern.test(value))
@@ -102,7 +106,7 @@
     <EmptyState icon="table" title="选择一张表开始浏览" description="在目录中搜索表名或业务注释，查看字段、索引和约束。" />
   {:else}
     <header class="detail-header">
-      <div class="detail-title-row"><div class="table-identity"><h1 title={fullName}>{app.selectedTable}</h1>
+      <div class="detail-title-row"><div class="table-identity"><h1 title={fullName}>{#each splitHighlight(app.selectedTable, tablePattern) as part}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</h1>
         <button class="icon-btn" title="复制完整表名" aria-label="复制完整表名" onclick={() => void copy(fullName)}><Icon name="copy" size={15} /></button></div>
         <div class="table-navigation" role="group" aria-label="表浏览历史"><button class="icon-btn" aria-label="返回上一张表" title="返回上一张表（Alt + ←）" disabled={!app.canGoBack} onclick={() => app.goBack()}><Icon name="back" size={15} /></button><button class="icon-btn" aria-label="前进到下一张表" title="前进到下一张表（Alt + →）" disabled={!app.canGoForward} onclick={() => app.goForward()}><Icon name="arrow" size={15} /></button></div>
         {#if !app.degraded}<div class="detail-actions"><button class="btn" aria-label="建表 SQL" title="建表 SQL" onclick={onsql} disabled={!app.detail || loading}><Icon name="code" size={15} /><span>建表 SQL</span></button>
@@ -110,7 +114,7 @@
       </div>
       <div class="detail-meta">
         {#if app.selectedSchema && app.selectedSchema !== app.ctx.database}<span class="detail-schema" title={app.selectedSchema}>{app.selectedSchema}</span>{/if}
-        <p class="detail-comment" title={app.detail?.table.table_comment || ''}>{app.detail?.table.table_comment || (loading ? '正在读取表结构…' : '暂无表注释')}</p>
+        <p class="detail-comment" title={app.detail?.table.table_comment || ''}>{#each splitHighlight(app.detail?.table.table_comment || (loading ? '正在读取表结构…' : '暂无表注释'), tablePattern) as part}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</p>
         <details class="table-info" bind:open={infoExpanded}>
           <summary title="查看完整表名、注释与数据库属性">表信息<Icon name="down" size={12} /></summary>
           <div class="table-info-panel"><dl>
@@ -138,7 +142,7 @@
       {#if loading}<div class="detail-skeleton" role="status"><span class="spinner"></span>正在读取 {app.selectedTable} 的表结构…<div></div><div></div><div></div><div></div></div>
       {:else if loaded}
         {#if tab === 'columns'}
-          <div class="fields-toolbar"><div class="field-search"><Icon name="search" size={15} /><input type="search" aria-label="搜索当前表字段" placeholder="搜索字段名、类型或注释…" bind:value={keyword} /></div>
+          <div class="fields-toolbar"><div class="field-search"><Icon name="search" size={15} /><input bind:this={fieldSearchInput} type="search" aria-label="搜索当前表字段" placeholder="搜索字段名、类型或注释…" bind:value={keyword} />{#if keyword}<button class="icon-btn" aria-label="清空字段搜索" title="显示全部字段" onclick={() => { keyword = ''; fieldSearchInput?.focus() }}><Icon name="close" size={13} /></button>{/if}</div>
             {#if !app.degraded}<label><input type="checkbox" bind:checked={uncommented} />仅无注释</label>{/if}
             <div class="field-options"><span>{filteredColumns.length} / {columns.length} 个字段</span><button class="density-btn" class:chosen={dense} aria-pressed={dense} onclick={() => dense = !dense}><Icon name="grid" size={14} />紧凑</button></div>
           </div>
@@ -149,16 +153,16 @@
               <thead><tr><th>#</th><th>字段名</th><th>数据类型</th><th>可空</th><th>默认值</th>{#if !app.degraded}<th>键 / 索引</th><th>注释</th>{/if}</tr></thead>
               <tbody>{#each filteredColumns as column (column.column_name)}
                 <tr><td>{column.ordinal_position ?? '—'}</td>
-                  <td><button class="column-name" title="复制字段名" onclick={() => void copy(column.column_name)}>{#each splitHighlight(column.column_name, pattern) as part}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</button>
+                  <td><button class="column-name" title="复制字段名" onclick={() => void copy(column.column_name)}>{#each splitHighlight(column.column_name, fieldHighlightPattern) as part}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</button>
                     {#if column.is_identity || column.extra?.includes('auto_increment')}<span class="column-extra">自增</span>{/if}
                     {#if column.generation_expression}<span class="column-extra" title={column.generation_expression}>生成列</span>{/if}
                   </td>
-                  <td><span class={typeCssClass(column.column_type)} title={databaseTypeKindLabel(column.column_type)}>{column.column_type}</span></td>
+                  <td><span class={typeCssClass(column.column_type)} title={databaseTypeKindLabel(column.column_type)}>{#each splitHighlight(column.column_type, pattern) as part}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</span></td>
                   <td><span class:nullable={column.is_nullable === 'YES'} class="nullability">{column.is_nullable === 'YES' ? '是' : '否'}</span></td>
-                  <td class="default-cell" title={column.column_default ?? ''}><code>{column.column_default === '' ? "''" : column.column_default ?? '—'}</code></td>
+                  <td class="default-cell" title={column.column_default ?? ''}><code>{#each splitHighlight(column.column_default === '' ? "''" : column.column_default ?? '—', pattern) as part}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</code></td>
                   {#if !app.degraded}<td>{#each indexesByColumn.get(column.column_name) ?? [] as group (group.name)}
                     <button class="index-chip" class:primary={group.first.is_primary} title={databaseIndexDisplayTitle(group.first)} onclick={() => switchTab('indexes')}>{databaseIndexKindLabel(group.first)}</button>
-                  {/each}</td><td class="comment-cell">{#if column.column_comment}{#each splitHighlight(column.column_comment, pattern) as part}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}{:else}<span class="muted">—</span>{/if}</td>{/if}
+                  {/each}</td><td class="comment-cell">{#if column.column_comment}{#each splitHighlight(column.column_comment, fieldHighlightPattern) as part}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}{:else}<span class="muted">—</span>{/if}</td>{/if}
                 </tr>
               {/each}</tbody>
             </table></div>
@@ -218,6 +222,7 @@
   .field-search { display: flex; gap: 7px; align-items: center; width: 270px; max-width: 100%; padding: 5px 9px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--muted); }
   .field-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-weak); }
   .field-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 12px; }
+  .field-search .icon-btn { padding: 0; min-height: 18px; min-width: 18px; flex: none; }
   .fields-toolbar label { display: flex; gap: 5px; align-items: center; font-size: 12px; color: var(--muted); }
   .field-options { display: flex; align-items: center; gap: 12px; margin-left: auto; color: var(--muted); font-size: 11px; white-space: nowrap; }
   .density-btn { display: flex; align-items: center; gap: 5px; border: 1px solid var(--border); border-radius: 6px; padding: 5px 7px; color: var(--muted); background: transparent; font-size: 11px; cursor: pointer; }.density-btn.chosen { background: var(--accent-weak); color: var(--accent); border-color: transparent; }

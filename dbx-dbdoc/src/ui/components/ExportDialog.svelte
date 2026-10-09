@@ -229,7 +229,7 @@
           <div class="export-saved">已保存 ✓</div>
         {:else if md}
           <!-- 宿主不支持保存：全文 readonly textarea（max-height 滚动）+ 复制全文 -->
-          <textarea class="export-md" aria-label="生成的 Markdown 文档" readonly rows="14" value={md}></textarea>
+          <textarea class="export-md" style="resize: none" aria-label="生成的 Markdown 文档" readonly rows="14" value={md}></textarea>
         {/if}
       </div>
       <footer class="export-foot">
@@ -379,7 +379,6 @@
     white-space: pre;
     overflow: auto;
     max-height: 48vh;
-    resize: vertical;
     color: var(--text);
   }
 

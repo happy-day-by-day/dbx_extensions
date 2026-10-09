@@ -36,13 +36,14 @@ export function createAppState() {
   // 联调诊断：宿主投递过但未被识别的上下文载荷（bridge 推送更新）
   let diagMessage = $state('')
   let columnHits = $state<Set<string>>(new Set())
+  let catalogSearch = $state({ keyword: '', regexMode: false })
   let catalogRefreshing = $state(false)
   let catalogError = $state('')
   let revision = $state(0)
   let history = $state(emptyTableHistory())
 
   function navigateTable(schema: string | null, table: string, tab: TableTab = history.visits[history.index]?.tab ?? 'columns') {
-    history = visitTable(history, { schema, table, tab })
+    history = setHistoryTab(visitTable(history, { schema, table, tab }), tab)
     ctxTargetTable = null
     selectedSchema = schema
     selectedTable = table
@@ -72,6 +73,7 @@ export function createAppState() {
     get errorMessage() { return errorMessage }, set errorMessage(v: string) { errorMessage = v },
     get diagMessage() { return diagMessage }, set diagMessage(v: string) { diagMessage = v },
     get columnHits() { return columnHits }, set columnHits(v: Set<string>) { columnHits = v },
+    get catalogSearch() { return catalogSearch }, set catalogSearch(v: typeof catalogSearch) { catalogSearch = v },
     get catalogRefreshing() { return catalogRefreshing }, set catalogRefreshing(v: boolean) { catalogRefreshing = v },
     get catalogError() { return catalogError }, set catalogError(v: string) { catalogError = v },
     get detailTab() { return history.visits[history.index]?.tab ?? 'columns' },
@@ -81,7 +83,7 @@ export function createAppState() {
     navigateTable,
     goBack: () => moveHistory(-1),
     goForward: () => moveHistory(1),
-    resetHistory: () => { history = emptyTableHistory() },
+    resetHistory: () => { history = emptyTableHistory(); catalogSearch = { keyword: '', regexMode: false } },
     get revision() { return revision }, set revision(v: number) { revision = v }
   }
 }

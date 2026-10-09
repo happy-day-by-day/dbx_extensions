@@ -1,0 +1,16 @@
+{
+  "version": "0.4.3",
+  "sha256": "445c5bc306e7ed946ea1a25e4498e004c8acf3f3de3977f3a3da4bf0739f6d4d",
+  "size": 73294,
+  "members": [
+    "assets/icon.svg",
+    "manifest.json",
+    "ui/assets/index-BhnDrUne.css",
+    "ui/assets/index-DigiWP0G.js",
+    "ui/index.html",
+    "checksums.json"
+  ],
+  "checksumsVerified": 5,
+  "sourceAndBuildMatch": true,
+  "signed": false
+}

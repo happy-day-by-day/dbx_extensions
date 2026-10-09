@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { DbTable } from '../dialects/entities'
 import { selectCatalogTables, virtualRange, type CatalogOptions } from './catalog'
 import { groupRows } from './groups'
+import { tableSearchKey } from './columnSearch'
 
 const tables: DbTable[] = ['orders', 'users', 'logs'].map((name, i) => ({
   table_schema: i === 2 ? 'audit' : 'public', table_name: name, table_comment: i === 2 ? '' : '业务表',
@@ -10,15 +11,15 @@ const tables: DbTable[] = ['orders', 'users', 'logs'].map((name, i) => ({
 const options: CatalogOptions = { keyword: '', regexMode: false, schema: null, columnHits: new Set(), uncommented: false, sort: 'name' }
 describe('目录搜索和虚拟滚动', () => {
   it('字段命中的表出现在目录结果，不要求表名也命中', () => {
-    expect(selectCatalogTables(tables, { ...options, keyword: 'user_id', columnHits: new Set(['public.orders']) }).map((row) => row.table_name)).toEqual(['orders'])
+    expect(selectCatalogTables(tables, { ...options, keyword: 'user_id', columnHits: new Set([tableSearchKey('public', 'orders')]) }).map((row) => row.table_name)).toEqual(['orders'])
   })
   it('字段命中也遵循 Schema 和无注释筛选', () => {
-    expect(selectCatalogTables(tables, { ...options, keyword: 'id', columnHits: new Set(['public.users']), schema: 'audit' })).toEqual([])
+    expect(selectCatalogTables(tables, { ...options, keyword: 'id', columnHits: new Set([tableSearchKey('public', 'users')]), schema: 'audit' })).toEqual([])
     expect(selectCatalogTables(tables, { ...options, uncommented: true })).toEqual([tables[2]])
   })
   it('无效正则不显示全部表，正则模式不混入字面字段搜索结果', () => {
     expect(selectCatalogTables(tables, { ...options, keyword: '[', regexMode: true })).toEqual([])
-    expect(selectCatalogTables(tables, { ...options, keyword: '^users$', regexMode: true, columnHits: new Set(['public.orders']) }).map((row) => row.table_name)).toEqual(['users'])
+    expect(selectCatalogTables(tables, { ...options, keyword: '^users$', regexMode: true, columnHits: new Set([tableSearchKey('public', 'orders')]) }).map((row) => row.table_name)).toEqual(['users'])
   })
   it('字段数排序不改变原目录', () => {
     expect(selectCatalogTables(tables, { ...options, sort: 'columns' }).map((row) => row.table_name)).toEqual(['logs', 'users', 'orders'])

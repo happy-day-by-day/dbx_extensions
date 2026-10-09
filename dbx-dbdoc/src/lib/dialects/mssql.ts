@@ -185,7 +185,8 @@ export const mssqlAdapter: DialectAdapter = {
   // 字段搜索：列名/扩展属性注释 LIKE（MSSQL 无默认转义符，显式 ESCAPE '\' 使 likePattern 的通配符转义生效，
   // 与 mysql/pg 行为一致）。
   searchColumns: (ref: TableRef, keyword: string) => `
-    SELECT DISTINCT c.TABLE_SCHEMA AS table_schema, c.TABLE_NAME AS table_name
+    SELECT DISTINCT c.TABLE_SCHEMA AS table_schema, c.TABLE_NAME AS table_name,
+      c.COLUMN_NAME AS column_name, ISNULL(CONVERT(NVARCHAR(MAX), g.value), '') AS column_comment
     FROM INFORMATION_SCHEMA.COLUMNS c
     LEFT JOIN sys.extended_properties g
       ON g.class = 1

@@ -127,11 +127,12 @@
     }
     if (s.includes('ilike')) {
       const kw = ((s.match(/ilike '%([^']*)%'/) || [])[1] || '').replace(/\\([%_\\])/g, '$1')
-      const hits = new Set()
+      const schema = (s.match(/c\.table_schema = '([^']+)'/) || [])[1]
+      const hits = []
       COLUMNS.forEach(([sc, t, col, _type, _dataType, _nullable, _identity, _default, comment]) => {
-        if (col.includes(kw) || comment.includes(kw) || kw === '') hits.add(sc + '\u0000' + t)
+        if ((!schema || sc === schema) && (col.toLowerCase().includes(kw) || comment.toLowerCase().includes(kw) || kw === '')) hits.push([sc, t, col, comment])
       })
-      return q(['table_schema', 'table_name'], [...hits].map((k) => k.split('\u0000')))
+      return q(['table_schema', 'table_name', 'column_name', 'column_comment'], hits)
     }
     if (s.includes('from information_schema.columns')) {
       const table = (s.match(/(?:c\.)?table_name = '([^']+)'/) || [])[1]
@@ -185,11 +186,12 @@
   let catalogFailed = params.has('catalogFail')
   let partialFailed = params.has('partial')
   let allDetailsFailed = params.has('allDetailsFail')
+  let searchFailed = params.has('searchFail')
   const tableQueryCounts = new Map()
   let lastSaveName = ''
   let lastCopied = ''
   let savedBytes = 0
-  window.__qcount = { tables: 0, detail: 0, probe: 0, databases: 0, all: 0 }
+  window.__qcount = { tables: 0, detail: 0, search: 0, probe: 0, databases: 0, all: 0 }
   window.dbxPlugin = {
     ready: Promise.resolve(),
     capabilities: { dataApi: true, schemaMetadataApi: true, storage: true, clipboardWrite: true },
@@ -201,9 +203,11 @@
     },
     queryData: async (req) => {
       const s = String(req.sql).replace(/\s+/g, ' ')
+      const fieldSearch = /\bilike\b/i.test(s)
       window.__qcount.all += 1
       if (/information_schema\.schemata/i.test(s)) window.__qcount.databases += 1
       if (/information_schema\.tables/i.test(s)) window.__qcount.tables += 1
+      else if (fieldSearch) window.__qcount.search += 1
       else if (/pg_index|information_schema\.columns|con\.contype|statistics/i.test(s)) window.__qcount.detail += 1
       else if (/^SELECT 1$/.test(s.trim())) window.__qcount.probe += 1
       const queriedTable = (s.match(/(?:relname|table_name)\s*=\s*'([^']+)'/i) || [])[1]
@@ -214,11 +218,15 @@
       }
       console.log('[mock] queryData:', s.slice(0, 90))
       updateStats()
+      if (fieldSearch && params.has('slowSearch') && s.includes('user\\_id')) {
+        await sleep(1800)
+      }
       await sleep((params.has('slowOpen') && s.trim() === 'SELECT 1' && req.connectionId === 'dev') || (req.connectionId === 'slow' && /information_schema\.schemata/i.test(s)) ? 1300 : (slow || params.has('slowUsers')) && s.includes("'users'") ? 1800 : DELAY)
       if (denied) throw new Error('PLUGIN_DATA_ACCESS_NOT_GRANTED: 模拟授权拒绝')
       if (connectionClosed || (closedDatabase && req.database === closedDatabase)) throw new Error('Connection is not open')
       if (databaseFail && /information_schema\.schemata/i.test(s)) throw new Error('模拟数据库列表读取失败')
       if (catalogFailed && /information_schema\.tables/i.test(s)) throw new Error('模拟目录读取失败')
+      if (fieldSearch && searchFailed) throw new Error('模拟字段搜索失败')
       if (allDetailsFailed && queriedTable) throw new Error('模拟全部表元数据读取失败')
       if (/information_schema\.schemata/i.test(s) && (req.connectionId === 'dev' || req.connectionId === 'slow')) {
         const names = req.connectionId === 'slow' ? ['staging', 'qa'] : ['public', 'reporting', 'support', 'archive']
@@ -231,7 +239,12 @@
         return q(['table_schema', 'table_name', 'table_comment', 'engine', 'table_collation', 'column_count'], [])
       }
       const result = answer(req.sql)
+      if (fieldSearch && params.has('slowSearch') && s.includes('user\\_id')) {
+        const status = document.getElementById('repro-search-status')
+        if (status) status.textContent = '旧字段查询已返回'
+      }
       if (params.has('truncated') && /information_schema\.tables/i.test(s)) result.truncated = true
+      if (params.has('searchTruncated') && fieldSearch) result.truncated = true
       return result
     },
     getTableMetadata: async () => ({ columns: [] }),
@@ -273,7 +286,7 @@
   }
   function updateStats() {
     const stats = document.getElementById('repro-stats')
-    if (stats) stats.textContent = `目录查询 ${window.__qcount.tables} · 详情查询 ${window.__qcount.detail} · 探测 ${window.__qcount.probe} · 数据库列表查询 ${window.__qcount.databases} · 已渲染表 ${document.querySelectorAll('.catalog-row').length} · 已复制 ${lastCopied.length} 字 · 已保存 ${savedBytes} 字节`
+    if (stats) stats.textContent = `目录查询 ${window.__qcount.tables} · 详情查询 ${window.__qcount.detail} · 字段搜索 ${window.__qcount.search} · 探测 ${window.__qcount.probe} · 数据库列表查询 ${window.__qcount.databases} · 已渲染表 ${document.querySelectorAll('.catalog-row').length} · 已复制 ${lastCopied.length} 字 · 已保存 ${savedBytes} 字节`
     const tableStats = document.getElementById('repro-table-queries')
     if (tableStats) tableStats.textContent = `按表查询：${[...tableQueryCounts].map(([name, count]) => `${name} ${count}`).join(' · ')}${lastSaveName ? `；保存文件名：${lastSaveName}` : ''}`
   }
@@ -285,6 +298,7 @@
     panel.append(summary)
     const stats = document.createElement('p'); stats.id = 'repro-stats'; panel.append(stats)
     const tableStats = document.createElement('p'); tableStats.id = 'repro-table-queries'; panel.append(tableStats)
+    const searchStatus = document.createElement('p'); searchStatus.id = 'repro-search-status'; panel.append(searchStatus)
     const button = (label, callback) => { const el = document.createElement('button'); el.textContent = label; el.onclick = callback; el.style.margin = '3px'; panel.append(el) }
     button('更新验收统计', updateStats)
     button('切换明暗主题', () => { window.dbxPlugin.theme.appearance = window.dbxPlugin.theme.appearance === 'dark' ? 'light' : 'dark'; window.dispatchEvent(new Event('dbx-plugin-env')) })
@@ -309,6 +323,7 @@
     button('恢复显示名称保存', () => { nameSaveFailed = false })
     button('模拟目录读取失败', () => { catalogFailed = true })
     button('恢复目录读取', () => { catalogFailed = false })
+    button('恢复字段搜索', () => { searchFailed = false })
     button('模拟全部表读取失败', () => { allDetailsFailed = true })
     button('恢复表元数据读取', () => { partialFailed = false; allDetailsFailed = false })
     button('模拟数据访问授权被拒绝', () => { denied = true })

@@ -1,5 +1,6 @@
 import type { DbTable } from '../dialects/entities'
 import { compileFilterPattern, tableMatchesFilter, CATALOG_FILTER_DIMENSIONS } from './filters'
+import { tableSearchKey } from './columnSearch'
 
 export interface CatalogOptions {
   keyword: string
@@ -17,7 +18,7 @@ export function selectCatalogTables(tables: DbTable[], options: CatalogOptions):
     if (options.schema && table.table_schema !== options.schema) return false
     if (options.uncommented && table.table_comment.trim()) return false
     return !pattern.regex || tableMatchesFilter(table, options.keyword, CATALOG_FILTER_DIMENSIONS, { pattern: pattern.regex })
-      || (!options.regexMode && options.columnHits.has(`${table.table_schema}.${table.table_name}`))
+      || (!options.regexMode && options.columnHits.has(tableSearchKey(table.table_schema, table.table_name)))
   }).sort((a, b) => {
     if (options.sort === 'columns' && a.column_count !== b.column_count) return b.column_count - a.column_count
     return a.table_name.localeCompare(b.table_name) || a.table_schema.localeCompare(b.table_schema)

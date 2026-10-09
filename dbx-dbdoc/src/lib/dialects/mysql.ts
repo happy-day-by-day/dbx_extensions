@@ -101,7 +101,8 @@ export const mysqlAdapter: DialectAdapter = {
     WHERE tc.CONSTRAINT_TYPE = 'CHECK' AND ${qualifiedTableFilter('tc', ref.db, table)}
     ORDER BY tc.CONSTRAINT_NAME`,
   searchColumns: (ref, keyword) => `
-    SELECT DISTINCT TABLE_SCHEMA AS table_schema, TABLE_NAME AS table_name
+    SELECT DISTINCT TABLE_SCHEMA AS table_schema, TABLE_NAME AS table_name,
+      COLUMN_NAME AS column_name, COLUMN_COMMENT AS column_comment
     FROM INFORMATION_SCHEMA.COLUMNS
     WHERE ${dbFilter(ref.db)} AND (COLUMN_NAME LIKE ${likePattern(keyword)} OR COLUMN_COMMENT LIKE ${likePattern(keyword)})`,
   mapTable: (row) => ({
