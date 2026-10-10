@@ -68,11 +68,14 @@ components:
 
 | Capability | Canonical owner | Source of truth | Allowed variants | Verification |
 | --- | --- | --- | --- | --- |
-| Table Selection | Catalog.svelte / AppState.navigateTable | README 浏览和检索 | 单表选择、字段匹配后高亮 | 目录单元测试与浏览器键盘验收 |
+| Table Selection | Catalog.svelte / AppState.navigateTable | README 浏览和检索 | 单击选择、字段匹配后高亮、双击或 Enter 打开表查询 | 目录单元测试与浏览器键盘验收 |
+| Query Editor | QueryWorkbench.svelte / tableQuery.ts | README 表查询 | 原生 textarea、显式执行只读查询、最多 200 行 | SQL 标识符测试、桥接契约测试、模拟宿主浏览器验收 |
 | Select/Listbox | Catalog.svelte 既有原生 select | 本文件的 Components | Schema 与排序 | 浏览器打开菜单、键盘选择 |
 | Scrollbar | src/ui/styles.css | 运行时主题变量 | 原生标准属性与 WebKit 回退 | 静态审计与窄窗口滚动 |
 
 目录搜索的 canonical owner 是 `Catalog.svelte`，纯过滤由 `display/catalog.ts` 负责，命中片段由 `display/highlight.ts` 负责。远程字段匹配通过方言的只读元数据 SQL 返回名称和注释；普通搜索默认包括字段，正则只匹配已加载的表信息。
+
+双击目录表或目录获得焦点时按 Enter，通过官方 `openWorkbench` 打开独立「表查询」插件标签页。单击继续查看文档。每次创建新的查询草稿，绑定当时的连接、数据库和实际 Schema；不覆盖已有草稿，不自动执行。查询页使用紧凑顶栏和原生等宽 textarea，复用已有按钮、主题和滚动条。最多显示 200 行，执行、失败、空结果、截断和 SQL 修改后的旧结果均明确反馈；业务数据不写入 URL 或插件存储。原生 DBX SQL 编辑器暂未向插件开放导航接口。
 
 Schema 与排序使用既有原生 select；平台负责选项菜单几何和键盘操作。详情本地字段搜索复用相同高亮与清空按钮。检索词不写入 URL 或宿主存储，仅搜索偏好和目录宽度持久化：DBX 内嵌工作台没有可分享路由，关键词可能含内部业务名称。
 
@@ -82,4 +85,4 @@ Schema 与排序使用既有原生 select；平台负责选项菜单几何和键
 - 点击字段匹配表后打开字段页并展示全部字段，仅高亮匹配名称和注释；目录关键词不填入右侧筛选。右侧手动搜索独立控制字段筛选和高亮，清空后恢复目录关键词高亮。
 - 中文输入组合期间不派发远程查询；忽略已过期的结果，清空后立即恢复列表并归还输入焦点。
 - 正在搜索或查询失败时不宣称「没有匹配的表」。表信息本地命中可先显示，远程失败有明确重试入口。
-- 保留宿主只读权限边界，不读取业务表数据，不改变会话授权行为。
+- 文档检索只读取元数据；表查询仅在用户点击执行或按 Ctrl / ⌘ Enter 后读取业务数据，保留宿主只读权限与会话授权边界。

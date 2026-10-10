@@ -1,6 +1,7 @@
 // 接口定义已迁至 ./types（Task 3），此处转发导出，调用方 import 路径不变。
 import type { DbxBridge, PluginContext, QueryResult } from './types'
 import { cleanConnectionName } from './connectionLabels'
+import { createTableSelectSql, TABLE_QUERY_WORKBENCH_ID } from './tableQuery'
 
 export type { DbxBridge, PluginContext, QueryResult }
 
@@ -182,6 +183,14 @@ export function getBridge(): DbxBridge | null {
   }
   const bridge: DbxBridge = {
     capabilities,
+    getContributionId: () => typeof host.contributionId === 'string' ? host.contributionId : null,
+    openTableQuery: async (context) => {
+      if (!context.connectionId) throw new Error('请选择查询连接')
+      createTableSelectSql(context)
+      if (typeof host.openWorkbench !== 'function') throw new Error('当前 DBX 版本不支持打开查询标签页，请升级 DBX 后重试')
+      // Official navigation API, scoped to our declared contribution. New drafts must not overwrite old ones.
+      await host.openWorkbench(TABLE_QUERY_WORKBENCH_ID, { ...context }, { forceNew: true, target: 'tab' })
+    },
     ready: async () => {
       if (typeof host.ready === 'function') await host.ready()
       else await host.ready

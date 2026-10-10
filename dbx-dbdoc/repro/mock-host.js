@@ -72,6 +72,17 @@
 
   function answer(sql) {
     const s = sql.replace(/\s+/g, ' ').toLowerCase()
+    const selectTable = sql.trim().match(/^SELECT \* FROM "((?:[^"]|"")*)"\."((?:[^"]|"")*)"(?:\s+WHERE\s+(.+?))?;?$/i)
+    if (selectTable) {
+      const schema = selectTable[1].replace(/""/g, '"')
+      const table = selectTable[2].replace(/""/g, '"')
+      const fields = COLUMNS.filter((column) => column[0] === schema && column[1] === table)
+      if (!fields.length) throw new Error('模拟表不存在')
+      const result = q(fields.map((column) => column[2]), params.has('queryEmpty') || /1\s*=\s*0/.test(selectTable[3] || '') ? []
+        : [fields.map((column, i) => i === 0 ? 1 : column[2] === 'amount' ? '128.50' : column[2] === 'created_at' ? '2026-10-10 10:00:00' : i === 1 ? '示例数据' : null)])
+      result.truncated = params.has('queryTruncated')
+      return result
+    }
     if (/^SELECT 1$/i.test(s.trim())) return q([], [])
     if (s.includes(' as available')) return q(['available'], [[params.has('mysql57') ? 0 : 1]])
     if (/information_schema\.schemata/i.test(s)) {
@@ -174,6 +185,7 @@
   if (params.has('nameless')) delete currentContext.name
   if (params.get('connectionName')) currentContext.name = params.get('connectionName')
   if (params.get('database')) currentContext.database = params.get('database')
+  if (params.get('connectionId')) currentContext.connectionId = params.get('connectionId')
   if (params.has('mysql57')) currentContext = { ...currentContext, dbType: 'mysql', database: 'public' }
   if (params.get('table')) currentContext = { ...currentContext, schema: params.get('schema') || 'public', table: params.get('table') === 'orders' && params.get('schema') !== 'sales' ? displayTable : params.get('table') }
   if (params.has('tableAsName')) currentContext = { ...currentContext, schema: 'public', table: currentContext.table || 'orders', name: currentContext.table || 'orders' }
@@ -191,10 +203,11 @@
   let lastSaveName = ''
   let lastCopied = ''
   let savedBytes = 0
-  window.__qcount = { tables: 0, detail: 0, search: 0, probe: 0, databases: 0, all: 0 }
+  window.__qcount = { tables: 0, detail: 0, search: 0, probe: 0, databases: 0, data: 0, all: 0 }
   window.dbxPlugin = {
     ready: Promise.resolve(),
-    capabilities: { dataApi: true, schemaMetadataApi: true, storage: true, clipboardWrite: true },
+    contributionId: params.has('queryPage') ? 'com.sazs.dbdoc.query' : 'com.sazs.dbdoc.main',
+    capabilities: { dataApi: !params.has('dataUnavailable'), schemaMetadataApi: true, storage: true, clipboardWrite: true },
     theme: { appearance: params.get('theme') || 'light', tokens: {} },
     get context() { return currentContext },
     onContext: (cb) => {
@@ -203,6 +216,8 @@
     },
     queryData: async (req) => {
       const s = String(req.sql).replace(/\s+/g, ' ')
+      const dataQuery = /^SELECT \* FROM\b/i.test(s.trim())
+      if (dataQuery) window.__qcount.data += 1
       const fieldSearch = /\bilike\b/i.test(s)
       window.__qcount.all += 1
       if (/information_schema\.schemata/i.test(s)) window.__qcount.databases += 1
@@ -224,6 +239,7 @@
       await sleep((params.has('slowOpen') && s.trim() === 'SELECT 1' && req.connectionId === 'dev') || (req.connectionId === 'slow' && /information_schema\.schemata/i.test(s)) ? 1300 : (slow || params.has('slowUsers')) && s.includes("'users'") ? 1800 : DELAY)
       if (denied) throw new Error('PLUGIN_DATA_ACCESS_NOT_GRANTED: 模拟授权拒绝')
       if (connectionClosed || (closedDatabase && req.database === closedDatabase)) throw new Error('Connection is not open')
+      if (dataQuery && params.has('queryFail')) throw new Error('模拟查询执行失败')
       if (databaseFail && /information_schema\.schemata/i.test(s)) throw new Error('模拟数据库列表读取失败')
       if (catalogFailed && /information_schema\.tables/i.test(s)) throw new Error('模拟目录读取失败')
       if (fieldSearch && searchFailed) throw new Error('模拟字段搜索失败')
@@ -261,6 +277,16 @@
     },
     copy: async (text) => { lastCopied = text; updateStats() }
   }
+  if (!params.has('noWorkbench')) window.dbxPlugin.openWorkbench = async (id, context, options) => {
+    if (params.has('openQueryFail')) throw new Error('模拟宿主打开查询失败')
+    if (id !== 'com.sazs.dbdoc.query' || !options?.forceNew || options?.target !== 'tab') throw new Error('模拟查询导航参数无效')
+    const next = new URL(location.href)
+    next.searchParams.set('queryPage', '1')
+    for (const [key, value] of Object.entries(context)) {
+      if (typeof value === 'string') next.searchParams.set(key === 'name' ? 'connectionName' : key, value)
+    }
+    if (!window.open(next.href, '_blank')) throw new Error('浏览器阻止了新查询标签页')
+  }
   window.__emitContext = (ctx) => {
     console.log('[mock] emit context:', JSON.stringify(ctx))
     currentContext = ctx
@@ -286,7 +312,7 @@
   }
   function updateStats() {
     const stats = document.getElementById('repro-stats')
-    if (stats) stats.textContent = `目录查询 ${window.__qcount.tables} · 详情查询 ${window.__qcount.detail} · 字段搜索 ${window.__qcount.search} · 探测 ${window.__qcount.probe} · 数据库列表查询 ${window.__qcount.databases} · 已渲染表 ${document.querySelectorAll('.catalog-row').length} · 已复制 ${lastCopied.length} 字 · 已保存 ${savedBytes} 字节`
+    if (stats) stats.textContent = `目录查询 ${window.__qcount.tables} · 详情查询 ${window.__qcount.detail} · 字段搜索 ${window.__qcount.search} · 数据查询 ${window.__qcount.data} · 探测 ${window.__qcount.probe} · 数据库列表查询 ${window.__qcount.databases} · 已渲染表 ${document.querySelectorAll('.catalog-row').length} · 已复制 ${lastCopied.length} 字 · 已保存 ${savedBytes} 字节`
     const tableStats = document.getElementById('repro-table-queries')
     if (tableStats) tableStats.textContent = `按表查询：${[...tableQueryCounts].map(([name, count]) => `${name} ${count}`).join(' · ')}${lastSaveName ? `；保存文件名：${lastSaveName}` : ''}`
   }

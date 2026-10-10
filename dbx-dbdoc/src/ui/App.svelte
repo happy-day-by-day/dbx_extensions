@@ -18,6 +18,8 @@
   import SqlDialog from './components/SqlDialog.svelte'
   import SidebarResize from './components/SidebarResize.svelte'
   import Icon from './components/Icon.svelte'
+  import QueryWorkbench from './components/QueryWorkbench.svelte'
+  import { TABLE_QUERY_WORKBENCH_ID } from '../lib/tableQuery'
   import './styles.css'
 
   const app = createAppState()
@@ -25,6 +27,7 @@
   let sqlOpen = $state(false)
   let exportOpen = $state(false)
   let pickerOpen = $state(false)
+  let queryMode = $state(false)
   let exportMode = $state<'table' | 'schema'>('table')
   let sidebarWidth = $state(304)
   let bootSeq = 0
@@ -193,6 +196,7 @@
     if (lastHostContext && (['connectionId', 'database', 'schema', 'table', 'dbType', 'name'] as const)
       .every((key) => lastHostContext![key] === next[key])) return
     lastHostContext = { ...next }
+    if (queryMode) { app.ctx = { ...next }; return }
     void applyContext(next)
   }
 
@@ -217,6 +221,16 @@
       await bridge.ready()
       if (disposed) return
       await applyTheme()
+      queryMode = bridge.getContributionId?.() === TABLE_QUERY_WORKBENCH_ID
+      if (queryMode) {
+        const ctx = await bridge.getContext()
+        if (disposed) return
+        lastHostContext = { ...(pendingContext ?? ctx ?? {}) }
+        initialized = true
+        app.ctx = { ...lastHostContext }
+        app.phase = 'ready'
+        return
+      }
       const width = Number(await bridge.storageGet('dbdoc.sidebarWidth').catch(() => null))
       if (width >= 224 && width <= 520) sidebarWidth = width
       const ctx = await bridge.getContext()
@@ -256,6 +270,7 @@
 
   // 依赖变更立即使旧请求失效；异步加载只消费派发时的上下文快照。
   $effect(() => {
+    if (queryMode) return
     const table = app.selectedTable
     const schema = app.selectedSchema ?? ''
     const connectionId = app.ctx.connectionId
@@ -301,11 +316,16 @@
   function saveSidebar() { void getBridge()?.storageSet('dbdoc.sidebarWidth', String(sidebarWidth)).catch(() => undefined) }
   $effect(() => {
     const place = connectionLabel(app.ctx)
+    if (queryMode) return
     document.title = `${app.selectedTable || place || '数据库文档'} · 数据库文档`
   })
 </script>
 
-{#if app.phase === 'booting'}
+{#if queryMode && app.phase === 'ready'}
+  <QueryWorkbench context={app.ctx} />
+{:else if queryMode && app.phase === 'error'}
+  <EmptyState icon="refresh" title="查询页初始化失败" description={maskUuids(app.errorMessage)} actionLabel="重试" onaction={() => void initApp()} />
+{:else if app.phase === 'booting'}
   <div class="boot" role="status"><span class="spinner"></span>正在打开数据库文档…</div>
 {:else if app.phase === 'guide'}
   <Guide context={app.ctx} diagnostics={app.diagMessage || null} onopen={chooseResource} onrename={renameConnection} />

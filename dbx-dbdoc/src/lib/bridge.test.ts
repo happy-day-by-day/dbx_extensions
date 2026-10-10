@@ -26,6 +26,34 @@ const mkHost = () => ({
 })
 
 describe('bridge', () => {
+  it('opens a new scoped query workbench without executing SQL', async () => {
+    const { getBridge } = await importBridge()
+    const host = { ...mkHost(), contributionId: 'com.sazs.dbdoc.query', openWorkbench: vi.fn().mockResolvedValue(undefined) }
+    Object.assign(globalThis, { window: { dbxPlugin: host } })
+    const context = { connectionId: 'c1', dbType: 'postgres', database: 'appdb', schema: 'sales', table: 'orders' }
+    const bridge = getBridge()!
+    expect(bridge.getContributionId?.()).toBe('com.sazs.dbdoc.query')
+    await bridge.openTableQuery!(context)
+    expect(host.openWorkbench).toHaveBeenCalledWith('com.sazs.dbdoc.query', context, { forceNew: true, target: 'tab' })
+    expect(host.queryData).not.toHaveBeenCalled()
+  })
+  it('reports unsupported navigation without sending guessed host requests', async () => {
+    const { getBridge } = await importBridge()
+    const host = { ...mkHost(), request: vi.fn() }
+    Object.assign(globalThis, { window: { dbxPlugin: host } })
+    await expect(getBridge()!.openTableQuery!({ connectionId: 'c1', dbType: 'mysql', table: 'orders' })).rejects.toThrow('升级 DBX')
+    expect(host.request).not.toHaveBeenCalled()
+    expect(host.queryData).not.toHaveBeenCalled()
+  })
+  it('surfaces host navigation rejection and validates the selected table', async () => {
+    const { getBridge } = await importBridge()
+    const host = { ...mkHost(), openWorkbench: vi.fn().mockRejectedValue(new Error('导航被拒绝')) }
+    Object.assign(globalThis, { window: { dbxPlugin: host } })
+    const bridge = getBridge()!
+    await expect(bridge.openTableQuery!({ connectionId: 'c1', dbType: 'mysql' })).rejects.toThrow('缺少查询表名')
+    expect(host.openWorkbench).not.toHaveBeenCalled()
+    await expect(bridge.openTableQuery!({ connectionId: 'c1', dbType: 'mysql', table: 'orders' })).rejects.toThrow('导航被拒绝')
+  })
   it('等待官方 Promise ready，再读取对象 context 与动态能力位', async () => {
     const { getBridge } = await importBridge()
     let resolveReady!: () => void

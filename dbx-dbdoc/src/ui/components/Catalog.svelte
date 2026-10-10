@@ -23,6 +23,8 @@
   let sort = $state<'name' | 'columns'>('name')
   let searchError = $state('')
   let searching = $state(false)
+  let openingQuery = $state(false)
+  let queryError = $state('')
   let prefsLoaded = $state(false)
   let filtersOpen = $state(false)
   let compact = $state(false)
@@ -47,6 +49,19 @@
     const fieldMatch = columnMatches.has(tableSearchKey(table.table_schema, table.table_name))
     app.navigateTable(table.table_schema, table.table_name, fieldMatch ? 'columns' : undefined)
   }
+  async function openQuery(table: DbTable) {
+    if (openingQuery) return
+    const context = { ...app.ctx, dbType: app.dbType, schema: table.table_schema, table: table.table_name }
+    openingQuery = true
+    queryError = ''
+    try {
+      const bridge = getBridge()
+      if (!bridge?.openTableQuery) throw new Error('当前 DBX 版本不支持打开查询标签页')
+      await bridge.openTableQuery(context)
+    } catch (error) {
+      queryError = maskUuids(error instanceof Error ? error.message : String(error))
+    } finally { openingQuery = false }
+  }
   function reveal(index: number) {
     if (!viewport) return
     const top = index * 72
@@ -58,6 +73,11 @@
     if (event.isComposing || composing) return
     if (event.key === 'Enter' && event.currentTarget === searchInput) { searchRetry += 1; return }
     if (!visible.length) return
+    if (event.key === 'Enter') {
+      const table = visible.find(isSelected)
+      if (table) { event.preventDefault(); void openQuery(table) }
+      return
+    }
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
     if (event.currentTarget === searchInput && !['ArrowDown', 'ArrowUp'].includes(event.key)) return
     event.preventDefault()
@@ -159,6 +179,7 @@
     </div>{/if}
     {#if regexMode}<p class="catalog-hint">正则仅匹配表名、表注释与 Schema</p>{/if}
     {#if pattern.error || searchError}<div class="catalog-error" role="alert"><span>{maskUuids(pattern.error || searchError)}</span>{#if searchError && !searching}<button class="text-btn" onclick={() => searchRetry += 1}>重试字段搜索</button>{/if}</div>{/if}
+    {#if queryError}<div class="catalog-error" role="alert"><span>无法打开查询：{queryError}</span><button class="text-btn" onclick={() => queryError = ''}>关闭提示</button></div>{/if}
     {#if selectionHidden}<div class="catalog-selection">正在查看 {app.selectedTable}<button class="text-btn" onclick={clearFilters}>清除筛选</button></div>{/if}
     </div>
   </div>
@@ -176,7 +197,7 @@
         {@const preview = matches.length ? columnMatchPreview(matches[0], committedKeyword) : ''}
         <button class="catalog-row" class:catalog-row-active={isSelected(table)} role="option" aria-selected={isSelected(table)}
           aria-setsize={visible.length} aria-posinset={visible.indexOf(table) + 1} tabindex="-1"
-          title={`${table.table_schema}.${table.table_name}\n${table.table_comment || '暂无注释'}${matches.length ? '\n匹配字段：' + matches.map((match) => match.name + (match.comment ? ' · ' + match.comment : '')).join('\n') : ''}`} onclick={() => select(table)}>
+          title={`${table.table_schema}.${table.table_name}\n${table.table_comment || '暂无注释'}${matches.length ? '\n匹配字段：' + matches.map((match) => match.name + (match.comment ? ' · ' + match.comment : '')).join('\n') : ''}\n双击打开查询`} onclick={() => select(table)} ondblclick={() => void openQuery(table)}>
           <span class="catalog-row-main"><span class="table-symbol"><Icon name="table" size={15} /></span>
             <span class="catalog-name">{#each splitHighlight(table.table_name, pattern.regex) as part}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</span>
             <span class="catalog-cols">{table.column_count} 列</span>
@@ -188,7 +209,7 @@
       <div aria-hidden="true" style={`height: ${range.after}px`}></div>
     {/if}
   </div>
-  <div class="catalog-footer"><span role="status" aria-live="polite">{searching ? '正在搜索字段和注释…' : `${visible.length.toLocaleString()} / ${app.catalog.length.toLocaleString()} 张表`}</span><span>↑ ↓ 选择</span></div>
+  <div class="catalog-footer"><span role="status" aria-live="polite">{openingQuery ? '正在打开查询…' : searching ? '正在搜索字段和注释…' : `${visible.length.toLocaleString()} / ${app.catalog.length.toLocaleString()} 张表`}</span><span title="上下键选择表；双击表或在目录中按 Enter 打开查询">双击 / Enter 查询</span></div>
 </nav>
 
 <style>

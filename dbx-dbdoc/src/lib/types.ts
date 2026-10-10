@@ -22,6 +22,9 @@ export interface DbxBridge {
   onContextChange(cb: (ctx: PluginContext) => void): () => void
   /** 宿主当前主题（'light' | 'dark'，未知返回 null）：底色跟随宿主而非 OS 媒体查询 */
   getTheme(): Promise<string | null>
+  getContributionId?(): string | null
+  /** Open this plugin's query workbench; never execute SQL as part of navigation. */
+  openTableQuery?(context: PluginContext): Promise<void>
   queryData(req: { connectionId: string; database?: string; schema?: string; sql: string; maxRows?: number }): Promise<QueryResult>
   getTableMetadata(req: { connectionId: string; database?: string; schema?: string; table: string }): Promise<{ columns: { name: string; dataType: string; nullable: boolean; length?: number; precision?: number; scale?: number; default?: string }[] }>
   storageGet(key: string): Promise<string | null>
