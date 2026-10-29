@@ -3,7 +3,7 @@
   "manifest_version": 1,
   "id": "com.sazs.dbdoc",
   "name": "数据库文档",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "icon": "assets/icon.svg",
   "publisher": "sazs",
   "description": "数据字典浏览器：表清单、字段注释、索引、建表 SQL 与 Markdown 导出",

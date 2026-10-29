@@ -5,6 +5,7 @@
   import { connKeyOf, createSessionCache, loadCatalog, loadDetail } from '../lib/store'
   import { loadRecent, rememberConnection, contextWithRecent } from '../lib/recent'
   import { cleanConnectionName, connectionLabel, connectionSubtitle } from '../lib/connectionLabels'
+  import { databaseDocumentTitle } from '../lib/workbenchTitle'
   import { maskUuids } from '../lib/display/masking'
   import type { PluginContext } from '../lib/types'
   import type { DbTable } from '../lib/dialects/entities'
@@ -28,6 +29,7 @@
   let exportOpen = $state(false)
   let pickerOpen = $state(false)
   let queryMode = $state(false)
+  let hostInitialized = $state(false)
   let exportMode = $state<'table' | 'schema'>('table')
   let sidebarWidth = $state(304)
   let bootSeq = 0
@@ -206,6 +208,7 @@
   }
 
   async function initApp() {
+    hostInitialized = false
     const bridge = getBridge()
     if (!bridge) { app.phase = 'error'; app.errorMessage = '请在 DBX 中打开数据库文档插件'; return }
     try {
@@ -238,6 +241,7 @@
       lastHostContext = { ...(pendingContext ?? ctx ?? {}) }
       initialized = true
       app.ctx = { ...lastHostContext }
+      hostInitialized = true
       await boot()
     } catch (err) {
       if (!disposed) { app.phase = 'error'; app.errorMessage = `初始化失败：${err instanceof Error ? err.message : String(err)}` }
@@ -315,9 +319,10 @@
   function openExport(mode: 'table' | 'schema') { exportMode = mode; exportOpen = true }
   function saveSidebar() { void getBridge()?.storageSet('dbdoc.sidebarWidth', String(sidebarWidth)).catch(() => undefined) }
   $effect(() => {
-    const place = connectionLabel(app.ctx)
     if (queryMode) return
-    document.title = `${app.selectedTable || place || '数据库文档'} · 数据库文档`
+    const title = databaseDocumentTitle(app.ctx)
+    document.title = title
+    if (hostInitialized) void getBridge()?.setWorkbenchTitle?.(title)
   })
 </script>
 

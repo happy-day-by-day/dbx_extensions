@@ -207,7 +207,7 @@
   window.dbxPlugin = {
     ready: Promise.resolve(),
     contributionId: params.has('queryPage') ? 'com.sazs.dbdoc.query' : 'com.sazs.dbdoc.main',
-    capabilities: { dataApi: !params.has('dataUnavailable'), schemaMetadataApi: true, storage: true, clipboardWrite: true },
+    capabilities: { dataApi: !params.has('dataUnavailable'), schemaMetadataApi: true, storage: true, clipboardWrite: true, workbenchTitle: !params.has('noSetTitle') },
     theme: { appearance: params.get('theme') || 'light', tokens: {} },
     get context() { return currentContext },
     onContext: (cb) => {
@@ -287,6 +287,12 @@
     }
     if (!window.open(next.href, '_blank')) throw new Error('浏览器阻止了新查询标签页')
   }
+  window.__workbenchTitles = []
+  if (!params.has('noSetTitle')) window.dbxPlugin.setTitle = async (title) => {
+    if (params.has('titleFail')) throw new Error('模拟宿主不支持修改标签标题')
+    window.__workbenchTitle = title
+    window.__workbenchTitles.push(title)
+  }
   window.__emitContext = (ctx) => {
     console.log('[mock] emit context:', JSON.stringify(ctx))
     currentContext = ctx
@@ -296,7 +302,7 @@
   if (params.has('initdelay')) {
     window.dbxPlugin.capabilities = {}
     window.dbxPlugin.ready = sleep(300).then(() => {
-      window.dbxPlugin.capabilities = { dataApi: true, schemaMetadataApi: true, storage: true, clipboardWrite: true }
+      window.dbxPlugin.capabilities = { dataApi: true, schemaMetadataApi: true, storage: true, clipboardWrite: true, workbenchTitle: !params.has('noSetTitle') }
     })
     setTimeout(() => window.__emitContext({ ...currentContext, schema: 'sales', table: 'orders' }), 80)
   }

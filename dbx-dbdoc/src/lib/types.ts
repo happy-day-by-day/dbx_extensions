@@ -23,6 +23,8 @@ export interface DbxBridge {
   /** 宿主当前主题（'light' | 'dark'，未知返回 null）：底色跟随宿主而非 OS 媒体查询 */
   getTheme(): Promise<string | null>
   getContributionId?(): string | null
+  /** Update this workbench's host tab title when supported. */
+  setWorkbenchTitle?(title: string): Promise<void>
   /** Open this plugin's query workbench; never execute SQL as part of navigation. */
   openTableQuery?(context: PluginContext): Promise<void>
   queryData(req: { connectionId: string; database?: string; schema?: string; sql: string; maxRows?: number }): Promise<QueryResult>

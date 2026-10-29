@@ -181,9 +181,20 @@ export function getBridge(): DbxBridge | null {
     get storage() { return host.capabilities?.storage === true },
     get clipboardWrite() { return host.capabilities?.clipboardWrite === true }
   }
+  let titleUpdate: Promise<void> = Promise.resolve()
+  let titleVersion = 0
   const bridge: DbxBridge = {
     capabilities,
     getContributionId: () => typeof host.contributionId === 'string' ? host.contributionId : null,
+    setWorkbenchTitle: (title) => {
+      if (host.capabilities?.workbenchTitle !== true || typeof host.setTitle !== 'function') return Promise.resolve()
+      const version = ++titleVersion
+      // Serialize host calls so a slow previous update cannot overwrite the latest database.
+      titleUpdate = titleUpdate.then(async () => {
+        if (version === titleVersion) await host.setTitle(title)
+      }).catch(() => undefined)
+      return titleUpdate
+    },
     openTableQuery: async (context) => {
       if (!context.connectionId) throw new Error('请选择查询连接')
       createTableSelectSql(context)

@@ -26,6 +26,53 @@ const mkHost = () => ({
 })
 
 describe('bridge', () => {
+  it('updates the calling workbench title through the host API', async () => {
+    const { getBridge } = await importBridge()
+    const host = { ...mkHost(), capabilities: { ...mkHost().capabilities, workbenchTitle: true }, setTitle: vi.fn().mockResolvedValue(undefined) }
+    Object.assign(globalThis, { window: { dbxPlugin: host } })
+    await getBridge()!.setWorkbenchTitle!('shop-数据库文档')
+    expect(host.setTitle).toHaveBeenCalledWith('shop-数据库文档')
+  })
+
+  it('leaves the document usable when the host does not support title changes', async () => {
+    const { getBridge } = await importBridge()
+    const oldHost = { ...mkHost(), request: vi.fn(), setTitle: vi.fn() }
+    Object.assign(globalThis, { window: { dbxPlugin: oldHost } })
+    await expect(getBridge()!.setWorkbenchTitle!('shop-数据库文档')).resolves.toBeUndefined()
+    expect(oldHost.request).not.toHaveBeenCalled()
+    expect(oldHost.setTitle).not.toHaveBeenCalled()
+
+    const incompleteHost = { ...mkHost(), capabilities: { ...mkHost().capabilities, workbenchTitle: true }, request: vi.fn() }
+    Object.assign(globalThis, { window: { dbxPlugin: incompleteHost } })
+    await expect(getBridge()!.setWorkbenchTitle!('shop-数据库文档')).resolves.toBeUndefined()
+    expect(incompleteHost.request).not.toHaveBeenCalled()
+
+    const rejectingHost = { ...mkHost(), capabilities: { ...mkHost().capabilities, workbenchTitle: true },
+      setTitle: vi.fn().mockRejectedValueOnce(new Error('unsupported')).mockResolvedValue(undefined) }
+    Object.assign(globalThis, { window: { dbxPlugin: rejectingHost } })
+    const bridge = getBridge()!
+    await expect(bridge.setWorkbenchTitle!('shop-数据库文档')).resolves.toBeUndefined()
+    await expect(bridge.setWorkbenchTitle!('other-数据库文档')).resolves.toBeUndefined()
+    expect(rejectingHost.setTitle).toHaveBeenLastCalledWith('other-数据库文档')
+  })
+
+  it('keeps the latest database title after a slow host update', async () => {
+    const { getBridge } = await importBridge()
+    let resolveFirst!: () => void
+    const host = { ...mkHost(), capabilities: { ...mkHost().capabilities, workbenchTitle: true }, setTitle: vi.fn()
+      .mockImplementationOnce(() => new Promise<void>((resolve) => { resolveFirst = resolve }))
+      .mockResolvedValue(undefined) }
+    Object.assign(globalThis, { window: { dbxPlugin: host } })
+    const bridge = getBridge()!
+    const first = bridge.setWorkbenchTitle!('first-数据库文档')
+    await Promise.resolve()
+    const obsolete = bridge.setWorkbenchTitle!('obsolete-数据库文档')
+    const latest = bridge.setWorkbenchTitle!('latest-数据库文档')
+    resolveFirst()
+    await Promise.all([first, obsolete, latest])
+    expect(host.setTitle.mock.calls.map(([title]) => title)).toEqual(['first-数据库文档', 'latest-数据库文档'])
+  })
+
   it('opens a new scoped query workbench without executing SQL', async () => {
     const { getBridge } = await importBridge()
     const host = { ...mkHost(), contributionId: 'com.sazs.dbdoc.query', openWorkbench: vi.fn().mockResolvedValue(undefined) }
