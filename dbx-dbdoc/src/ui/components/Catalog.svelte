@@ -12,7 +12,11 @@
   import { getBridge } from '../../lib/bridge'
   import Icon from './Icon.svelte'
 
-  let { state: app }: { state: AppState } = $props()
+  let { state: app, searchOffline, offlineVersion }: {
+    state: AppState
+    searchOffline: (keyword: string, schema: string | null) => Map<string, ColumnMatch[]>
+    offlineVersion: number
+  } = $props()
   let keyword = $state('')
   let committedKeyword = $state('')
   let composing = $state(false)
@@ -89,7 +93,7 @@
   function clearSearch() { keyword = ''; committedKeyword = ''; composing = false; searchInput?.focus() }
   function clearFilters() { clearSearch(); uncommented = false; regexMode = false; app.schemaFilter = null }
 
-  // 仅字段搜索访问数据库。变化时立即废弃旧结果，300ms 后才派发新请求。
+  // 离线字段搜索立即读取内存中的本地文档；在线查询仍保持 300ms 防抖。
   $effect(() => {
     const kw = committedKeyword.trim()
     const enabled = !regexMode && !app.degraded && !composing
@@ -105,7 +109,15 @@
     columnMatches = new Map()
     searchError = ''
     searching = false
-    if (!enabled || !kw || !connectionId || !adapter || phase !== 'ready') return
+    if (!enabled || !kw || phase !== 'ready') return
+    if (app.offline) {
+      offlineVersion
+      const matches = searchOffline(kw, schema)
+      columnMatches = matches
+      app.columnHits = new Set(matches.keys())
+      return
+    }
+    if (!connectionId || !adapter) return
     searching = true
     const run = () => {
       const bridge = getBridge()
@@ -209,7 +221,7 @@
       <div aria-hidden="true" style={`height: ${range.after}px`}></div>
     {/if}
   </div>
-  <div class="catalog-footer"><span role="status" aria-live="polite">{openingQuery ? '正在打开查询…' : searching ? '正在搜索字段和注释…' : `${visible.length.toLocaleString()} / ${app.catalog.length.toLocaleString()} 张表`}</span><span title="上下键选择表；双击表或在目录中按 Enter 打开查询">双击 / Enter 查询</span></div>
+  <div class="catalog-footer"><span role="status" aria-live="polite">{openingQuery ? '正在打开查询…' : searching ? '正在搜索字段和注释…' : `${app.offline ? '本地搜索 · ' : ''}${visible.length.toLocaleString()} / ${app.catalog.length.toLocaleString()} 张表`}</span><span title="上下键选择表；双击表或在目录中按 Enter 打开查询">双击 / Enter 查询</span></div>
 </nav>
 
 <style>

@@ -8,6 +8,7 @@
   import { connectionLabel } from '../../lib/connectionLabels'
   import { renderTableMarkdown } from '../../lib/markdown'
   import { mergeExportResult, remainingExportTables, renderExportResult } from '../../lib/exportResult'
+  import { exportOfflineSchema, type OfflineDocument } from '../../lib/offline'
   import { dateStamp } from '../../lib/date'
   import { exportSchema, type ExportSchemaResult } from '../../lib/store'
   import type { DbTable } from '../../lib/dialects/entities'
@@ -16,10 +17,10 @@
   import { modalFocus } from '../modalFocus'
 
   // 局部变量命名为 app 而非 state：同名会让 $state(...) 被解析成 store 订阅（App/SqlDialog 同款约定）。
-  let { state: app, initialMode = 'table', onclose }: { state: AppState; initialMode?: 'table' | 'schema'; onclose: () => void } = $props()
+  let { state: app, initialMode = 'table', getOfflineDocument, onclose }: { state: AppState; getOfflineDocument: () => OfflineDocument | null; initialMode?: 'table' | 'schema'; onclose: () => void } = $props()
 
   type Phase = 'select' | 'exporting' | 'result' | 'error'
-  interface ExportSnapshot { connectionId: string; dbType: string; title: string; ref: TableRef; tables: DbTable[]; truncated: boolean }
+  interface ExportSnapshot { connectionId: string; dbType: string; title: string; ref: TableRef; tables: DbTable[]; truncated: boolean; source: 'online' | 'offline'; offlineDocument: OfflineDocument | null }
 
   // 入口决定默认范围；selectedTable 为空时「当前表」单选禁用。
   // svelte-ignore state_referenced_locally —— 初始值仅在弹窗打开时读取一次，刻意不追踪后续变化
@@ -42,13 +43,13 @@
   let cancelled = $state(false)
 
   // 整库可用性：降级模式无目录、dbType 未适配（getAdapter 为 null）不可整库导出
-  const schemaExportable = $derived(!app.degraded && getAdapter(app.dbType) !== null)
+  const schemaExportable = $derived(!app.degraded && (app.offline || getAdapter(app.dbType) !== null))
   const scope = $derived(app.schemaFilter ? app.catalog.filter((table) => table.table_schema === app.schemaFilter) : app.catalog)
   const canExport = $derived(mode === 'table' ? Boolean(app.detail) && !app.detailLoading : schemaExportable && scope.length > 0)
   const remaining = $derived(snapshot ? remainingExportTables(snapshot.tables, result.details) : [])
   const total = $derived(snapshot?.tables.length ?? result.details.length)
   const unstarted = $derived(Math.max(0, remaining.length - result.failed.length))
-  const retryLabel = $derived(unstarted ? `继续生成剩余 ${remaining.length} 张表` : `重试失败的 ${remaining.length} 张表`)
+  const retryLabel = $derived(snapshot?.source === 'offline' ? '重新检查本地缓存' : unstarted ? `继续生成剩余 ${remaining.length} 张表` : `重试失败的 ${remaining.length} 张表`)
 
   // yyyyMMdd 本地日期文件名戳（ES2020 目标：不用 replaceAll）
   const stamp = (): string => dateStamp(true)
@@ -108,20 +109,26 @@
     errorMessage = ''
     copyState = 'idle'
     try {
-      const bridge = getBridge()
-      const adapter = getAdapter(target.dbType)
-      if (!bridge || !adapter) throw new Error('当前宿主无法读取元数据，请重新打开数据库文档')
-      const batch = await exportSchema(bridge, adapter, target.connectionId, target.ref, tables, {
-        concurrency: 2,
-        onProgress: (done, total) => { if (alive) progress = { done, total } },
-        shouldContinue: () => alive && !cancelled
-      })
+      let batch: ExportSchemaResult
+      if (target.source === 'offline') {
+        batch = exportOfflineSchema(target.offlineDocument, tables)
+        progress = { done: tables.length, total: tables.length }
+      } else {
+        const bridge = getBridge()
+        const adapter = getAdapter(target.dbType)
+        if (!bridge || !adapter) throw new Error('当前宿主无法读取元数据，请重新打开数据库文档')
+        batch = await exportSchema(bridge, adapter, target.connectionId, target.ref, tables, {
+          concurrency: 2,
+          onProgress: (done, total) => { if (alive) progress = { done, total } },
+          shouldContinue: () => alive && !cancelled
+        })
+      }
       if (!alive) return
       result = mergeExportResult(target.tables, result, batch)
       stopped = cancelled
-      md = renderExportResult(target.title, result, target.dbType, target.tables.length, target.truncated, stopped)
+      md = renderExportResult(target.title, result, target.dbType, target.tables.length, target.truncated, stopped, target.source === 'offline' ? { savedAt: target.offlineDocument?.savedAt ?? 0 } : undefined)
       if (!result.details.length && !stopped) {
-        errorMessage = '未能读取表结构。请恢复 DBX 中的数据库会话或数据访问授权后重试。'
+        errorMessage = target.source === 'offline' ? '当前导出范围没有可用的本地表结构缓存，未生成文档。' : '未能读取表结构。请恢复 DBX 中的数据库会话或数据访问授权后重试。'
         phase = 'error'
         return
       }
@@ -163,7 +170,7 @@
       if (!connectionId) throw new Error('请先选择连接和数据库')
       snapshot = { connectionId, dbType: app.dbType, title: connectionLabel(app.ctx),
         ref: { db: app.ctx.database ?? null, schema: null, table: null },
-        tables: scope.map((table) => ({ ...table })), truncated: app.truncated }
+        tables: scope.map((table) => ({ ...table })), truncated: app.truncated, source: app.offline ? 'offline' : 'online', offlineDocument: app.offline ? getOfflineDocument() : null }
       fileName = safeFileName(`${snapshot.title}_数据字典_${stamp()}.md`)
       await generateRemaining(true)
     } catch (err) {
@@ -193,7 +200,7 @@
 <svelte:window onkeydown={onKeydown} />
 
 {#snippet failureList()}
-  {#if result.failed.length}<details class="export-failures"><summary>查看读取失败的表（{result.failed.length}）</summary><ul>{#each result.failed as failure}<li>{[failure.schema, failure.table].filter(Boolean).join('.')}：{maskUuids(failure.message)}</li>{/each}</ul></details>{/if}
+  {#if result.failed.length}<details class="export-failures"><summary>查看{snapshot?.source === 'offline' ? '缺少缓存' : '读取失败'}的表（{result.failed.length}）</summary><ul>{#each result.failed as failure}<li>{[failure.schema, failure.table].filter(Boolean).join('.')}：{maskUuids(failure.message)}</li>{/each}</ul></details>{/if}
 {/snippet}
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
@@ -219,10 +226,11 @@
       </footer>
     {:else if phase === 'result'}
       <div class="export-result">
-        <div class="export-summary" role="status"><strong>已生成 {result.details.length} / {total} 张表</strong><span>{remaining.length ? [result.failed.length ? `${result.failed.length} 张读取失败` : '', unstarted ? `${unstarted} 张尚未读取` : ''].filter(Boolean).join(' · ') : '当前导出范围已完成'}</span></div>
+        <div class="export-summary" role="status"><strong>已生成 {result.details.length} / {total} 张表</strong><span>{remaining.length ? [result.failed.length ? `${result.failed.length} 张${snapshot?.source === 'offline' ? '缺少缓存' : '读取失败'}` : '', unstarted ? `${unstarted} 张尚未读取` : ''].filter(Boolean).join(' · ') : '当前导出范围已完成'}</span></div>
         {#if stopped}<div class="export-note">已停止生成，已完成内容保留，可继续读取剩余表。</div>{/if}
         {#if snapshot?.truncated}<div class="notice">表清单被宿主截断，当前文档只包含已加载的表。</div>{/if}
         {#if saveMessage}<div class="export-note" role="status">{saveMessage}</div>{/if}
+        {#if snapshot?.source === 'offline'}<div class="export-note">文档来源：本地离线缓存{remaining.length ? '；缺失的表已在文档中列出，可保存现有部分。' : '。'}</div>{/if}
         {@render failureList()}
         <div class="export-note export-filename" title={fileName}>{fileName}</div>
         {#if saved}
@@ -234,7 +242,7 @@
       </div>
       <footer class="export-foot">
         {#if md && !saved}<button class="btn" onclick={copyAll} title="复制 Markdown 全文到剪贴板"><Icon name={copyState === 'ok' ? 'check' : 'copy'} size={16} />{copyState === 'ok' ? '已复制' : copyState === 'fail' ? '复制失败' : '复制全文'}</button>{/if}
-        {#if remaining.length}<button class="btn btn-primary" onclick={() => void generateRemaining()}><Icon name="refresh" size={16} />{retryLabel}</button>{/if}
+        {#if remaining.length && snapshot?.source !== 'offline'}<button class="btn btn-primary" onclick={() => void generateRemaining()}><Icon name="refresh" size={16} />{retryLabel}</button>{/if}
         {#if md && !saved}<button class="btn" class:btn-primary={!remaining.length} onclick={() => void persist()}>{saveAttempted ? '再次保存' : remaining.length ? '保存已完成部分' : '保存文档'}</button>{/if}
         <button class="btn" onclick={onclose}>关闭</button>
       </footer>
@@ -242,11 +250,12 @@
       <div class="export-error" role="alert">导出失败：{maskUuids(errorMessage)}</div>
       {@render failureList()}
       <footer class="export-foot">
-        {#if remaining.length}<button class="btn btn-primary" onclick={() => void generateRemaining()}>{retryLabel}</button>{/if}
+        {#if remaining.length && snapshot?.source !== 'offline'}<button class="btn btn-primary" onclick={() => void generateRemaining()}>{retryLabel}</button>{/if}
         <button class="btn" onclick={resetToSelect}>重新选择范围</button>
         <button class="btn" onclick={onclose}>关闭</button>
       </footer>
     {:else}
+      {#if app.offline}<div class="export-note">从本地离线缓存生成，不访问数据库；缓存缺失的表会单独列出。</div>{/if}
       <div class="export-options">
         <label class="export-option" class:selected={mode === 'table'}>
           <input type="radio" name="export-mode" checked={mode === 'table'} disabled={!app.selectedTable} onchange={() => (mode = 'table')} />

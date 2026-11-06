@@ -1,0 +1,60 @@
+name: Release database documentation plugin
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - dbx-dbdoc/manifest.json
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-dbdoc-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dbx-dbdoc
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: dbx-dbdoc/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+      - name: Package plugin
+        run: npx --yes @dbx-app/plugin-cli@0.1.6 package .
+      - name: Verify and publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p "require('./manifest.json').version")
+          test "$(node -p "require('./package.json').version")" = "$VERSION"
+          PACKAGE="dist/com.sazs.dbdoc-${VERSION}-universal.dbxp"
+          METADATA="dist/com.sazs.dbdoc-${VERSION}-universal.artifact.json"
+          node --input-type=module - "$PACKAGE" "$METADATA" <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const [packagePath, metadataPath] = process.argv.slice(2);
+          const bytes = fs.readFileSync(packagePath);
+          const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+          const sha256 = crypto.createHash('sha256').update(bytes).digest('hex');
+          if (sha256 !== metadata.sha256 || bytes.length !== metadata.size) {
+            throw new Error('Package checksum or size does not match artifact metadata');
+          }
+          NODE
+          gh release create "v${VERSION}" "$PACKAGE" "$METADATA" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest \
+            --title "数据库文档 v${VERSION}" \
+            --notes-file "docs/release-notes-${VERSION}.md"

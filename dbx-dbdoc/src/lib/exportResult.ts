@@ -24,10 +24,15 @@ export function mergeExportResult(tables: DbTable[], previous: ExportSchemaResul
   }
 }
 
-export function renderExportResult(title: string, result: ExportSchemaResult, dbType: string, total: number, truncated: boolean, stopped: boolean): string {
+export function renderExportResult(title: string, result: ExportSchemaResult, dbType: string, total: number, truncated: boolean, stopped: boolean, offline?: { savedAt: number }): string {
   if (!result.details.length) return ''
   const missing = Math.max(0, total - result.details.length - result.failed.length)
   const notes = [stopped ? '生成已停止。' : '', result.failed.length ? `${result.failed.length} 张表读取失败。` : '', missing ? `${missing} 张表尚未读取。` : '', truncated ? '表清单被宿主截断。' : ''].join('')
   const notice = notes ? `> 本文档包含 ${result.details.length}/${total} 张已加载表；${notes}\n\n` : ''
-  return notice + renderSchemaMarkdown(title, result.details, dbType)
+  const source = offline ? `> 来源：本地离线缓存；目录缓存时间：${new Date(offline.savedAt).toLocaleString()}。内容可能已变更。\n\n` : ''
+  const escapeText = (text: string) => text.replace(/[\r\n]/g, ' ').replace(/[\\`*_{}\[\]()<>!#|]/g, '\\$&')
+  const failures = offline && result.failed.length
+    ? `## 未导出的表（本地缓存缺失）\n\n${result.failed.map((failure) => `- ${escapeText([failure.schema, failure.table].filter(Boolean).join('.'))}：${escapeText(failure.message)}`).join('\n')}\n\n`
+    : ''
+  return source + notice + failures + renderSchemaMarkdown(title, result.details, dbType)
 }

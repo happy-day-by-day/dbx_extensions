@@ -44,3 +44,23 @@ describe('可继续生成的数据库导出', () => {
     expect(renderExportResult('shop', { details: [], failed: [] }, 'postgres', 3, false, true)).toBe('')
   })
 })
+
+describe('offline export document provenance', () => {
+  it('includes local cache provenance and missing table names in partial documents', () => {
+    const result = { ...initial, failed: [{ schema: 'sales', table: 'orders', message: '本地缓存缺失' }] }
+    const md = renderExportResult('shop', result, 'postgres', 3, false, false, { savedAt: 123 })
+    expect(md).toContain('来源：本地离线缓存')
+    expect(md).toContain('目录缓存时间：')
+    expect(md).toContain('未导出的表（本地缓存缺失）')
+    expect(md).toContain('sales.orders：本地缓存缺失')
+    expect(md).toContain('1/3 张已加载表')
+    expect(renderExportResult('shop', initial, 'postgres', 3, false, false)).not.toContain('来源：本地离线缓存')
+  })
+  it('labels complete cached documents without a missing-table warning', () => {
+    const md = renderExportResult('shop', { details: tables.map(detail), failed: [] }, 'postgres', 3, false, false, { savedAt: 123 })
+    expect(md).toContain('来源：本地离线缓存')
+    expect(md).toContain('# shop 数据字典')
+    expect(md).not.toContain('未导出的表')
+    expect(md).not.toContain('本文档包含')
+  })
+})

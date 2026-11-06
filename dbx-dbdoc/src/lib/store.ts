@@ -128,6 +128,21 @@ export async function loadCatalog(
     maxRows: MAX_ROWS
   })
   const data: CatalogData = { tables: rowsToObjects(query).map(adapter.mapTable), truncated: query.truncated }
+  // Continue a host-truncated catalog in stable schema/name order.
+  const seen = new Set(data.tables.map((table) => JSON.stringify([table.table_schema, table.table_name])))
+  while (data.truncated) {
+    const offset = data.tables.length
+    const sql = adapter.listTables(ref).trim().replace(/;$/, '')
+      + (adapter.dbType === 'mssql' ? ` OFFSET ${offset} ROWS FETCH NEXT ${MAX_ROWS} ROWS ONLY` : ` LIMIT ${MAX_ROWS} OFFSET ${offset}`)
+    const page = await bridge.queryData({ connectionId, database: ref.db ?? undefined, schema: ref.schema ?? undefined, sql, maxRows: MAX_ROWS })
+    const tables = rowsToObjects(page).map(adapter.mapTable)
+    const fresh = tables.filter((table) => !seen.has(JSON.stringify([table.table_schema, table.table_name])))
+    if (tables.length && fresh.length !== tables.length) break // Catalog changed or host ignored paging: keep the partial warning.
+    for (const table of fresh) seen.add(JSON.stringify([table.table_schema, table.table_name]))
+    data.tables.push(...fresh)
+    data.truncated = page.truncated || tables.length === MAX_ROWS
+    if (!tables.length) break
+  }
   if (cache?.version(connKey) === version) cache?.setCatalog(connKey, data)
   return data
 }

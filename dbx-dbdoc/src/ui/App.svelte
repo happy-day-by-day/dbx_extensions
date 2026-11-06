@@ -3,6 +3,7 @@
   import { getBridge, isDataAccessDenied, isConnectionNotOpen, onUnrecognizedContext } from '../lib/bridge'
   import { getAdapter, normalizeDbType } from '../lib/dialects/registry'
   import { connKeyOf, createSessionCache, loadCatalog, loadDetail } from '../lib/store'
+  import { loadOffline, saveOffline, finishOfflineSync, cacheAllTables, searchOfflineColumnMatches, withOfflineDetail, offlineTableKey, type OfflineDocument, type OfflineSyncIssue } from '../lib/offline'
   import { loadRecent, rememberConnection, contextWithRecent } from '../lib/recent'
   import { cleanConnectionName, connectionLabel, connectionSubtitle } from '../lib/connectionLabels'
   import { databaseDocumentTitle } from '../lib/workbenchTitle'
@@ -25,6 +26,15 @@
 
   const app = createAppState()
   const cache = createSessionCache()
+  let offlineDocument = $state.raw<OfflineDocument | null>(null)
+  let offlineVersion = $state(0)
+  let syncIssues = $state<OfflineSyncIssue[]>([])
+  let syncBusy = $state(false)
+  let syncDone = $state(0)
+  let syncFailed = $state(0)
+  let syncTotal = $state(0)
+  let cachedTableCount = $state(0)
+  let syncSeq = 0
   let sqlOpen = $state(false)
   let exportOpen = $state(false)
   let pickerOpen = $state(false)
@@ -51,60 +61,129 @@
       ?? scoped.find((t) => t.table_name.toLowerCase() === ctx.table!.toLowerCase()) ?? null
   }
 
-  async function refreshCatalog(force = false) {
-    if (app.catalogRefreshing) return
+  async function refreshCatalog() {
+    if (app.catalogRefreshing || syncBusy) return
     const bridge = getBridge()
-    const adapter = getAdapter(app.dbType)
     const ctx = { ...app.ctx }
-    if (!bridge || !adapter || !ctx.connectionId) return
-    const keepDocument = app.phase === 'ready'
+    if (!bridge || !ctx.connectionId) return
+    const previous = offlineDocument
     const seq = ++catalogSeq
+    const sync = ++syncSeq
+    const active = () => !disposed && seq === catalogSeq && sync === syncSeq
     const ref = refOf(ctx)
-    if (force) cache.clear(connKeyOf(ctx.connectionId, ref))
     app.catalogRefreshing = true
     app.catalogError = ''
-    if (!app.catalog.length) app.phase = 'loading-catalog'
+    app.storageError = ''
+    app.offline = true
+    app.phase = 'ready'
+    syncIssues = []
+    syncDone = 0
+    syncFailed = 0
+    syncTotal = 0
     try {
-      const result = await loadCatalog(bridge, adapter, ctx.connectionId, ref, cache)
-      if (disposed || seq !== catalogSeq) return
-      app.catalog = result.tables
-      app.truncated = result.truncated
-      app.schemas = [...new Set(result.tables.map((t) => t.table_schema))].sort()
+      let type = normalizeDbType(ctx.dbType ?? app.dbType)
+      if (type === 'unknown' && !ctx.dbType) {
+        const probe = await bridge.queryData({ connectionId: ctx.connectionId, database: ctx.database, sql: 'SELECT 1', maxRows: 1 })
+        if (!active()) return
+        type = normalizeDbType(probe.dbType)
+      }
+      const adapter = getAdapter(type)
+      if (!adapter) {
+        if (ctx.table && bridge.capabilities?.schemaMetadataApi) {
+          app.degraded = true
+          app.offline = false
+          app.navigateTable(ctx.schema ?? null, ctx.table)
+          app.phase = 'ready'
+          return
+        }
+        throw new Error('该数据库类型暂不支持完整文档')
+      }
+      ctx.dbType = type
+      // All fetched metadata stays private until the complete snapshot is saved.
+      const catalog = await loadCatalog(bridge, adapter, ctx.connectionId, ref)
+      if (!active()) return
+      let staged: OfflineDocument = { version: 1, savedAt: Date.now(), catalog, details: {} }
+      syncBusy = true
+      syncTotal = catalog.tables.length
+      await cacheAllTables(catalog.tables,
+        (table) => loadDetail(bridge, adapter, ctx.connectionId!, ref, table.table_schema, table.table_name), {
+          shouldContinue: active,
+          onIssue: (issue) => { if (active()) syncIssues = [...syncIssues, issue] },
+          onProgress: (done, failed) => { if (active()) { syncDone = done; syncFailed = failed } },
+          onDetail: (detail) => { if (active()) staged = withOfflineDetail(staged, detail) }
+        })
+      if (!active()) return
+      const committed = await finishOfflineSync(staged, syncDone, syncFailed,
+        (document) => active() ? persistOffline(bridge, ctx, document) : Promise.resolve(false), previous, active)
+      if (!active()) return
+      if (!committed || committed === previous) {
+        app.catalogError = catalog.truncated ? '表目录未能完整读取，本次刷新未替换本地缓存。'
+          : app.storageError || '整库同步未完成，本次刷新未替换本地缓存。'
+        return
+      }
+      offlineDocument = committed
+      cache.clear(connKeyOf(ctx.connectionId, ref))
+      app.dbType = type
+      app.ctx.dbType = type
+      void rememberConnection(bridge, ctx).catch(() => undefined)
+      app.offlineSavedAt = committed.savedAt
+      offlineVersion += 1
+      cachedTableCount = Object.keys(committed.details).length
+      app.catalog = committed.catalog.tables
+      app.truncated = committed.catalog.truncated
+      app.schemas = [...new Set(app.catalog.map((table) => table.table_schema))].sort()
       if (app.schemaFilter && !app.schemas.includes(app.schemaFilter)) app.schemaFilter = null
-      const current = result.tables.find((t) => t.table_name === app.selectedTable && t.table_schema === app.selectedSchema)
-      const activeTarget = { ...app.ctx, table: app.ctxTargetTable ?? app.ctx.table,
+      const current = app.catalog.find((table) => table.table_name === app.selectedTable && table.table_schema === app.selectedSchema)
+      const targetContext = { ...app.ctx, table: app.ctxTargetTable ?? app.ctx.table,
         schema: app.ctxTargetTable ? app.selectedSchema ?? undefined : app.ctx.schema }
-      const target = targetRow(activeTarget, result.tables)
+      const target = targetRow(targetContext, app.catalog)
       if (current) select(current)
       else if (target) select(target)
-      else if (activeTarget.table) {
-        app.navigateTable(activeTarget.schema ?? null, activeTarget.table)
-        app.ctxTargetTable = activeTarget.table
-      } else if (result.tables[0]) select(result.tables[0])
+      else if (targetContext.table) {
+        app.navigateTable(targetContext.schema ?? null, targetContext.table)
+        app.ctxTargetTable = targetContext.table
+      } else if (app.catalog[0]) select(app.catalog[0])
       else { app.selectedTable = null; app.selectedSchema = null; app.detail = null }
       app.errorMessage = ''
-      app.phase = 'ready'
-      if (force) app.revision += 1
+      app.revision += 1
     } catch (err) {
-      if (disposed || seq !== catalogSeq) return
-      const message = err instanceof Error ? err.message : String(err)
-      if (keepDocument && !isDataAccessDenied(err)) {
-        app.catalogError = message
-        app.phase = 'ready'
-      } else {
-        app.errorMessage = message
-        app.phase = isDataAccessDenied(err) ? 'denied' : 'error'
-      }
+      if (!active()) return
+      // A failed refresh never replaces the visible or persistent document.
+      app.catalogError = err instanceof Error ? err.message : String(err)
     } finally {
-      if (seq === catalogSeq) app.catalogRefreshing = false
+      if (active()) { app.catalogRefreshing = false; syncBusy = false }
     }
+  }
+
+  function syncAllDocuments() { return refreshCatalog() }
+
+  async function persistOffline(bridge: NonNullable<ReturnType<typeof getBridge>>, ctx: PluginContext, doc: OfflineDocument) {
+    let storageMessage = ''
+    const saved = await saveOffline(bridge, ctx, doc, (message) => { storageMessage = message })
+    if (!disposed && ctx.connectionId === app.ctx.connectionId && ctx.database === app.ctx.database) {
+      app.storageError = saved ? '' : `离线文档未能保存到本地：${maskUuids(storageMessage || '当前 DBX 不支持持久存储')}。请检查存储支持或可用空间后刷新。`
+    }
+    return saved
   }
 
   async function boot() {
     const seq = ++bootSeq
     catalogSeq += 1
+    syncSeq += 1
+    syncBusy = false
+    syncDone = 0
+    syncFailed = 0
+    syncIssues = []
+    syncTotal = 0
+    cachedTableCount = 0
     app.catalogRefreshing = false
     app.catalogError = ''
+    app.offline = false
+    app.offlineSavedAt = 0
+    app.offlineDetailAt = 0
+    app.storageError = ''
+    offlineDocument = null
+    offlineVersion += 1
     app.resetHistory()
     sqlOpen = false
     exportOpen = false
@@ -132,30 +211,29 @@
       // 等待存储时宿主可能已更新名称，旧读取结果不能覆盖刚收到的名称。
       ctx = contextWithRecent({ ...ctx, name: app.ctx.name }, recent)
       app.ctx = ctx
-      let normalized = normalizeDbType(ctx.dbType ?? '')
-      if (!ctx.dbType && bridge.capabilities?.dataApi) {
-        const probe = await bridge.queryData({ connectionId: ctx.connectionId!, database: ctx.database, sql: 'SELECT 1', maxRows: 1 })
-        if (seq !== bootSeq || disposed) return
-        normalized = normalizeDbType(probe.dbType)
-      }
-      app.dbType = normalized === 'unknown' ? ctx.dbType ?? '未知' : normalized
+      const normalized = normalizeDbType(ctx.dbType ?? '')
+      app.dbType = normalized === 'unknown' ? ctx.dbType ?? '' : normalized
       if (normalized !== 'unknown') app.ctx = { ...app.ctx, dbType: normalized }
-      if (!ctx.dbType && normalized !== 'unknown') void rememberConnection(bridge, app.ctx).catch(() => undefined)
-      if (normalized === 'unknown') {
-        if (ctx.table && bridge.capabilities?.schemaMetadataApi) {
-          app.degraded = true
-          app.navigateTable(ctx.schema ?? null, ctx.table)
-          app.phase = 'ready'
-        } else app.phase = 'unsupported'
-        return
-      }
-      if (!bridge.capabilities?.dataApi) throw new Error('当前 DBX 版本未提供只读数据查询，请升级 DBX 后重试')
-      const adapter = getAdapter(normalized)!
-      if (!ctx.database && adapter.listDatabases) {
-        app.phase = 'guide'
-        return
-      }
-      await refreshCatalog()
+      const adapter = getAdapter(normalized)
+      if (!ctx.database && adapter?.listDatabases) { app.phase = 'guide'; return }
+      const savedDocument = await loadOffline(bridge, app.ctx)
+      if (seq !== bootSeq || disposed) return
+      offlineDocument = savedDocument
+      offlineVersion += 1
+      app.offline = true
+      app.offlineSavedAt = savedDocument?.savedAt ?? 0
+      app.catalog = savedDocument?.catalog.tables ?? []
+      app.truncated = savedDocument?.catalog.truncated ?? false
+      app.schemas = [...new Set(app.catalog.map((table) => table.table_schema))].sort()
+      cachedTableCount = Object.keys(savedDocument?.details ?? {}).length
+      const target = targetRow(ctx, app.catalog)
+      if (target) select(target)
+      else if (ctx.table) {
+        app.navigateTable(ctx.schema ?? null, ctx.table)
+        app.ctxTargetTable = ctx.table
+      } else if (app.catalog[0]) select(app.catalog[0])
+      app.phase = 'ready'
+
     } catch (err) {
       if (disposed || seq !== bootSeq) return
       app.errorMessage = err instanceof Error ? err.message : String(err)
@@ -264,6 +342,7 @@
       disposed = true
       bootSeq += 1
       catalogSeq += 1
+      syncSeq += 1
       offContext?.()
       offDiagnostic()
       window.removeEventListener('dbx-plugin-env', onEnv)
@@ -282,6 +361,7 @@
     const adapter = getAdapter(app.dbType)
     app.revision
     if (app.phase !== 'ready' || app.degraded || !table || !connectionId || !adapter) return
+    const offline = app.offline
     const row = app.catalog.find((t) => t.table_name === table && t.table_schema === schema)
     const bridge = getBridge()
     if (!bridge) return
@@ -290,18 +370,38 @@
     app.detail = null
     app.detailLoading = true
     app.errorMessage = ''
+    app.offlineDetailAt = 0
+    if (offline) {
+      offlineVersion
+      const entry = offlineDocument?.details[offlineTableKey(schema, table)]
+      app.detail = entry ? { ...entry.value, table: row ? { ...entry.value.table, ...row } : entry.value.table } : null
+      app.offlineDetailAt = entry?.savedAt ?? 0
+      app.detailLoading = false
+      if (!entry) app.errorMessage = '此表的离线同步尚未完成。在 DBX 中连接并打开目标数据库，然后点击顶部「刷新」重新同步全部表。'
+      return
+    }
+    const storedDetail = offlineDocument?.details[offlineTableKey(schema, table)]
+    const cachedDetail = cache.detail(connKeyOf(connectionId, ref), schema, table)
+      ?? (storedDetail && storedDetail.savedAt >= offlineDocument!.savedAt ? storedDetail.value : undefined)
     const timer = setTimeout(() => {
-      void loadDetail(bridge, adapter, connectionId, ref, schema, table, cache).then((detail) => {
+      void (cachedDetail ? Promise.resolve(cachedDetail) : loadDetail(bridge, adapter, connectionId, ref, schema, table, cache)).then((detail) => {
         if (!active || disposed) return
         app.detail = { ...detail, table: row ? { ...detail.table, ...row, column_count: detail.columns.length } : detail.table }
+
       }).catch((err) => {
-        if (active && !disposed) app.errorMessage = err instanceof Error ? err.message : String(err)
+        if (active && !disposed) {
+          if (!isDataAccessDenied(err) && offlineDocument) {
+            app.offline = true
+            app.offlineSavedAt = offlineDocument.savedAt
+          } else app.errorMessage = err instanceof Error ? err.message : String(err)
+        }
       }).finally(() => { if (active && !disposed) app.detailLoading = false })
-    }, cache.detail(connKeyOf(connectionId, ref), schema, table) ? 0 : 100)
+    }, cachedDetail ? 0 : 100)
     return () => { active = false; clearTimeout(timer) }
   })
 
   function retryDetail() {
+    if (app.offline) { void refreshCatalog(); return }
     if (app.ctx.connectionId) cache.clear(connKeyOf(app.ctx.connectionId, refOf(app.ctx)))
     app.revision += 1
   }
@@ -346,13 +446,29 @@
   <div class="layout" inert={sqlOpen || exportOpen || pickerOpen}>
     <Header connectionName={connectionSubtitle(app.ctx) || connectionLabel(app.ctx)} database={app.ctx.database || ''} dbType={app.dbType}
       tableCount={app.catalog.length} columnCount={app.catalog.reduce((sum, t) => sum + (t.column_count || 0), 0)}
-      truncated={app.truncated} busy={app.catalogRefreshing} degraded={app.degraded}
-      onrefresh={() => void refreshCatalog(true)} onexport={() => openExport('schema')} onchangeresource={changeResource} />
-    {#if app.catalogError}<div class="refresh-notice" role="status"><div><strong>刷新失败，仍在显示上次读取的文档</strong><span>{isConnectionNotOpen(app.catalogError) ? '数据库会话已关闭，请在 DBX 中打开目标数据库后重试。' : maskUuids(app.catalogError)}</span></div><button class="btn" aria-label="重试刷新文档" onclick={() => void refreshCatalog(true)}>重试刷新</button><button class="icon-btn" aria-label="关闭刷新提示" onclick={() => (app.catalogError = '')}><Icon name="close" size={16} /></button></div>{/if}
+      truncated={app.truncated} busy={app.catalogRefreshing} degraded={app.degraded} offline={app.offline}
+      offlineInfo={app.offline ? { savedAt: app.offlineSavedAt, lastSyncedAt: offlineDocument?.lastSyncedAt, detailAt: app.offlineDetailAt, cachedCount: cachedTableCount,
+        refreshError: isConnectionNotOpen(app.catalogError) ? '数据库会话已关闭，请在 DBX 中打开目标数据库后重试。' : maskUuids(app.catalogError) } : null}
+      syncStatus={(syncBusy || syncFailed > 0 || syncDone < syncTotal || Boolean(app.storageError) || !app.offline) && !app.degraded && app.phase === 'ready' ? {
+        label: syncBusy ? `同步 ${syncDone}/${syncTotal}` : app.storageError ? '缓存保存失败' : syncFailed || syncDone < syncTotal || app.truncated ? `同步未完成${syncFailed ? ` · ${syncFailed} 张表` : ''}` : '已同步',
+        description: syncBusy ? `正在同步全部表的离线文档，已处理 ${syncDone} / ${syncTotal} 张表。完成前请保持数据库连接及此页面打开。` : app.storageError || `离线文档已处理 ${syncDone} / ${syncTotal} 张表${syncFailed ? `，其中 ${syncFailed} 张表读取失败或信息不完整` : ''}。${app.truncated ? '目录被宿主截断，尚未覆盖整个数据库。' : syncFailed || syncDone < syncTotal ? '可重试同步，展开同步问题查看具体原因。' : '离线缓存覆盖当前数据库的全部表结构。'}`,
+        busy: syncBusy,
+        failed: Boolean(app.storageError || syncFailed || syncDone < syncTotal || app.truncated) && !syncBusy,
+        retryDisabled: app.catalogRefreshing,
+        onretry: () => void (app.truncated ? refreshCatalog() : syncAllDocuments())
+      } : null}
+      onrefresh={() => void refreshCatalog()} onexport={() => openExport('schema')} onchangeresource={changeResource} />
+    {#if syncIssues.length}<details class="sync-issues"><summary>查看 {syncIssues.length} 张表的同步问题</summary><ul>{#each syncIssues as issue}<li><button class="text-btn" onclick={() => app.navigateTable(issue.schema, issue.table)}>{issue.schema ? `${issue.schema}.` : ''}{issue.table}</button>{#each issue.messages as message}<div>{maskUuids(message)}</div>{/each}</li>{/each}</ul></details>{/if}
+    {#if app.storageError}<div class="notice" role="status">{app.storageError}</div>{/if}
+    {#if app.catalogError && !app.offline}<div class="refresh-notice" role="status"><div><strong>刷新失败，仍在显示上次读取的文档</strong><span>{isConnectionNotOpen(app.catalogError) ? '数据库会话已关闭，请在 DBX 中打开目标数据库后重试。' : maskUuids(app.catalogError)}</span></div><button class="btn" aria-label="重试刷新文档" onclick={() => void refreshCatalog()}>重试刷新</button><button class="icon-btn" aria-label="关闭刷新提示" onclick={() => (app.catalogError = '')}><Icon name="close" size={16} /></button></div>{/if}
     <div class="split" style={`--sidebar-width: ${sidebarWidth}px`}>
-      <Catalog state={app} />
+      <Catalog state={app} {offlineVersion} searchOffline={(keyword, schema) => searchOfflineColumnMatches(offlineDocument, keyword, schema)} />
       <SidebarResize value={sidebarWidth} onchange={(value) => { sidebarWidth = value }} oncommit={saveSidebar} />
-      {#if app.phase === 'loading-catalog'}
+      {#if app.offline && !offlineDocument && app.catalogRefreshing}
+        <div class="boot" role="status"><span class="spinner"></span>{syncBusy ? `正在同步 ${syncDone} / ${syncTotal} 张表，全部成功后显示文档…` : '正在读取表目录…'}</div>
+      {:else if app.offline && !offlineDocument && app.phase !== 'loading-catalog'}
+        <EmptyState icon="refresh" title="尚无本地文档" description="请在 DBX 中连接并打开目标数据库，然后点击「刷新」创建全库离线文档。之后打开文档将直接使用缓存。" actionLabel="刷新并同步文档" onaction={() => void refreshCatalog()} />
+      {:else if app.phase === 'loading-catalog'}
         <div class="boot" role="status"><span class="spinner"></span>正在读取表清单…</div>
       {:else}
         <Detail state={app} onsql={() => (sqlOpen = true)} onexport={() => openExport('table')} onretry={retryDetail} />
@@ -361,6 +477,13 @@
   </div>
 {/if}
 {#if sqlOpen}<SqlDialog state={app} onclose={() => (sqlOpen = false)} />{/if}
-{#if exportOpen}<ExportDialog state={app} initialMode={exportMode} onclose={() => (exportOpen = false)} />{/if}
+{#if exportOpen}<ExportDialog state={app} initialMode={exportMode} getOfflineDocument={() => offlineDocument} onclose={() => (exportOpen = false)} />{/if}
 {#if pickerOpen}<div class="resource-overlay"><Guide context={{ ...app.ctx, dbType: app.dbType }}
   diagnostics={app.diagMessage || null} onopen={chooseResource} onrename={renameConnection} onclose={() => (pickerOpen = false)} returnLabel={app.phase === 'ready' ? '返回文档' : '返回'} /></div>{/if}
+
+<style>
+  .sync-issues { flex: none; padding: 8px 20px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+  .sync-issues summary { cursor: pointer; }
+  .sync-issues ul { max-height: 180px; overflow: auto; padding-left: 20px; }
+  .sync-issues li { margin: 8px 0; overflow-wrap: anywhere; }
+</style>

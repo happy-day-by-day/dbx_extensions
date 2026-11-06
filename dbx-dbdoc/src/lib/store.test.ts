@@ -317,3 +317,22 @@ describe('listDatabases', () => {
     await expect(listDatabases(bridge, adapter, 'c1', ref)).rejects.toThrow('PLUGIN_DATA_ACCESS_NOT_GRANTED')
   })
 })
+
+describe('complete catalog pagination', () => {
+  it.each(['mysql', 'postgres', 'mssql'])('loads beyond the host cap for %s', async (dbType) => {
+    const adapter = (await import('./dialects/registry')).getAdapter(dbType)!
+    const bridge = mkBridge(dbType)
+    bridge.queryData.mockResolvedValueOnce({ ...result(['table_schema', 'table_name'], [['a', 'first']]), truncated: true })
+      .mockResolvedValueOnce(result(['table_schema', 'table_name'], [['b', 'second']]))
+    const catalog = await loadCatalog(bridge, adapter, 'c1', ref)
+    expect(catalog.tables.map((table) => table.table_name)).toEqual(['first', 'second'])
+    expect(catalog.truncated).toBe(false)
+    expect(bridge.queryData.mock.calls[1][0].sql).toContain(dbType === 'mssql' ? 'OFFSET 1 ROWS FETCH NEXT 5000 ROWS ONLY' : 'LIMIT 5000 OFFSET 1')
+  })
+  it('keeps a partial warning when the host ignores pagination', async () => {
+    const bridge = mkBridge()
+    bridge.queryData.mockResolvedValue({ ...result(['table_schema', 'table_name'], [['a', 'first']]), truncated: true })
+    expect((await loadCatalog(bridge, adapter, 'c1', ref)).truncated).toBe(true)
+    expect(bridge.queryData).toHaveBeenCalledTimes(2)
+  })
+})

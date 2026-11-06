@@ -42,3 +42,7 @@ dbx_extensions/
 ```
 
 `dbx-dbdoc/ui/` 和 `dbx-dbdoc/dist/` 是构建及打包产物，不作为源码维护。
+
+## GitHub Releases
+
+更新 `dbx-dbdoc/manifest.json` 中的版本并推送到 `main` 后，根目录的 `.github/workflows/release-dbdoc.yml` 会执行检查、测试、构建、打包和校验，并创建对应版本的 GitHub Release，附上 `.dbxp` 安装包及 artifact metadata。发布说明取自 `dbx-dbdoc/docs/release-notes-版本号.md`。也可在 Actions 中手动触发发布。

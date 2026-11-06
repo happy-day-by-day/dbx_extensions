@@ -1,0 +1,17 @@
+{
+  "version": "0.4.16",
+  "sha256": "30a00114e3ac3e9dcf24c8ea42414d52d8ee0c4d6308e7ca5f317779ce5c00c4",
+  "size": 87544,
+  "members": [
+    "assets/icon.svg",
+    "manifest.json",
+    "ui/assets/index-BRADe-I4.js",
+    "ui/assets/index-DrLQU_qh.css",
+    "ui/index.html",
+    "checksums.json"
+  ],
+  "checksumsVerified": 5,
+  "sourceAndBuildMatch": true,
+  "manifestSemanticMatch": true,
+  "signed": false
+}

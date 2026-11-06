@@ -1,0 +1,17 @@
+{
+  "version": "0.4.15",
+  "sha256": "57b88f27eb264e9963757a193dedb6e63ef5d0886cf7e47d65ef834e739814d3",
+  "size": 87409,
+  "members": [
+    "assets/icon.svg",
+    "manifest.json",
+    "ui/assets/index-Cc9cqgK7.js",
+    "ui/assets/index-DrLQU_qh.css",
+    "ui/index.html",
+    "checksums.json"
+  ],
+  "checksumsVerified": 5,
+  "sourceAndBuildMatch": true,
+  "manifestSemanticMatch": true,
+  "signed": false
+}

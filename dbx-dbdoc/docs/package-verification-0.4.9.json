@@ -1,0 +1,17 @@
+{
+  "version": "0.4.9",
+  "sha256": "d3186161adfea451102a913abb8e01054b03f291b6d8a9eddbde2db9f2db2142",
+  "size": 85485,
+  "members": [
+    "assets/icon.svg",
+    "manifest.json",
+    "ui/assets/index-DuzobI-1.js",
+    "ui/assets/index-FpMA8FIY.css",
+    "ui/index.html",
+    "checksums.json"
+  ],
+  "checksumsVerified": 5,
+  "sourceAndBuildMatch": true,
+  "manifestSemanticMatch": true,
+  "signed": false
+}

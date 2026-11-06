@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import { connectionMatches, groupConnections, mergeDatabases, currentSessionDatabase, verifyDatabaseSession } from './resources'
+import { connectionMatches, groupConnections, mergeDatabases, currentSessionDatabase, summarizeDocumentCache, verifyDatabaseSession } from './resources'
 import type { DbxBridge } from './types'
+import type { OfflineDocument } from './offline'
 import type { RecentConnection } from './recent'
 import { cleanConnectionName, connectionLabel, connectionSubtitle } from './connectionLabels'
 
@@ -103,5 +104,38 @@ describe('资源选择器', () => {
     await expect(verifyDatabaseSession({ queryData } as unknown as DbxBridge, 'a', 'closed')).rejects.toBe(error)
     expect(queryData).toHaveBeenCalledTimes(1)
     expect(queryData).toHaveBeenCalledWith(expect.objectContaining({ database: 'closed' }))
+  })
+})
+
+describe('document picker cache summaries', () => {
+  const table = (schema: string) => ({ table_schema: schema, table_name: 'orders', table_comment: '', engine: '', table_collation: '', column_count: 0 })
+  const document = (): OfflineDocument => ({ version: 1, savedAt: 100, lastSyncedAt: 200,
+    catalog: { tables: ['a', 'b'].map(table), truncated: false },
+    details: Object.fromEntries(['a', 'b'].map((schema) => [JSON.stringify([schema, 'orders']), {
+      savedAt: 150, value: { table: table(schema), columns: [], indexes: [], constraints: [], warnings: [] }
+    }])) as OfflineDocument['details'] })
+  it('distinguishes missing, complete and incomplete caches without claiming connection state', () => {
+    expect(summarizeDocumentCache(null)).toEqual({ state: 'missing', tableCount: 0, cachedTableCount: 0, lastSyncedAt: null })
+    const doc = document()
+    const before = JSON.stringify(doc)
+    expect(summarizeDocumentCache(doc)).toEqual({ state: 'ready', tableCount: 2, cachedTableCount: 2, lastSyncedAt: 200 })
+    expect(JSON.stringify(doc)).toBe(before)
+    delete doc.details[JSON.stringify(['b', 'orders'])]
+    expect(summarizeDocumentCache(doc)).toEqual({ state: 'partial', tableCount: 2, cachedTableCount: 1, lastSyncedAt: 200 })
+  })
+  it('marks truncated catalogs, warnings and stale details as incomplete', () => {
+    for (const reason of ['truncated', 'warning', 'stale']) {
+      const doc = document()
+      if (reason === 'truncated') doc.catalog.truncated = true
+      if (reason === 'warning') doc.details[JSON.stringify(['a', 'orders'])].value.warnings = ['索引未能读取']
+      if (reason === 'stale') doc.details[JSON.stringify(['a', 'orders'])].savedAt = 50
+      expect(summarizeDocumentCache(doc).state).toBe('partial')
+    }
+  })
+  it('does not invent successful times for legacy caches and supports synced empty databases', () => {
+    const doc = document(); delete doc.lastSyncedAt
+    expect(summarizeDocumentCache(doc).lastSyncedAt).toBeNull()
+    doc.catalog.tables = []
+    expect(summarizeDocumentCache(doc)).toEqual({ state: 'ready', tableCount: 0, cachedTableCount: 0, lastSyncedAt: null })
   })
 })

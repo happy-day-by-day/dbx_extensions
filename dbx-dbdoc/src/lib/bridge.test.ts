@@ -398,3 +398,74 @@ describe('bridge', () => {
     expect(result.rows).toEqual([['a']])
   })
 })
+
+describe('host data query budget', () => {
+  it('syncs 80 tables alongside foreground reads without exceeding four requests', async () => {
+    const { getBridge } = await importBridge()
+    const { loadDetail } = await import('./store')
+    const { cacheAllTables } = await import('./offline')
+    const { getAdapter } = await import('./dialects/registry')
+    let running = 0
+    let peak = 0
+    let rejected = 0
+    const host = mkHost()
+    host.queryData.mockImplementation(async () => {
+      if (running >= 4) { rejected++; throw new Error('At most 4 data queries may run at once; wait for one to finish') }
+      running++
+      peak = Math.max(peak, running)
+      try { await new Promise((resolve) => setTimeout(resolve, 1)); return { dbType: 'postgres', columns: [], rows: [], truncated: false } }
+      finally { running-- }
+    })
+    Object.assign(globalThis, { window: { dbxPlugin: host } })
+    const bridge = getBridge()!
+    const adapter = getAdapter('postgres')!
+    const ref = { db: 'appdb', schema: null, table: null }
+    const tables = Array.from({ length: 80 }, (_, i) => ({ table_schema: 'public', table_name: `table${i}`, table_comment: '', engine: '', table_collation: '', column_count: 0 }))
+    const issues = vi.fn()
+    const progress = vi.fn()
+    const saved = vi.fn()
+    await Promise.all([
+      cacheAllTables(tables, (table) => loadDetail(bridge, adapter, 'c1', ref, 'public', table.table_name), {
+        shouldContinue: () => true, onDetail: saved, onIssue: issues, onProgress: progress
+      }),
+      loadDetail(bridge, adapter, 'c1', ref, 'public', 'foreground'),
+      bridge.queryData({ connectionId: 'c1', sql: 'SELECT 1' })
+    ])
+    expect(peak).toBe(4)
+    expect(rejected).toBe(0)
+    expect(issues).not.toHaveBeenCalled()
+    expect(saved).toHaveBeenCalledTimes(80)
+    expect(progress).toHaveBeenLastCalledWith(80, 0)
+  })
+
+  it('releases queued requests after synchronous and asynchronous host errors', async () => {
+    const { getBridge } = await importBridge()
+    const host = mkHost()
+    host.queryData.mockImplementationOnce(() => { throw new Error('sync failure') }).mockRejectedValueOnce(new Error('async failure'))
+    Object.assign(globalThis, { window: { dbxPlugin: host } })
+    const results = await Promise.allSettled(Array.from({ length: 12 }, () => getBridge()!.queryData({ connectionId: 'c1', sql: 'SELECT 1' })))
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(2)
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(10)
+  })
+})
+
+describe('query timeout accounting', () => {
+  it('keeps timed-out host requests in the budget until the host actually settles', async () => {
+    const { getBridge } = await importBridge()
+    vi.useFakeTimers()
+    try {
+      const host = mkHost()
+      const finish: Array<() => void> = []
+      host.queryData.mockImplementation(() => new Promise((resolve) => finish.push(() => resolve({ dbType: 'mysql', columns: [], rows: [], truncated: false }))))
+      Object.assign(globalThis, { window: { dbxPlugin: host } })
+      const done = Promise.allSettled(Array.from({ length: 5 }, () => getBridge()!.queryData({ connectionId: 'c1', sql: 'SELECT 1' })))
+      await vi.advanceTimersByTimeAsync(65000)
+      expect(host.queryData).toHaveBeenCalledTimes(4)
+      finish.slice().forEach((resolve) => resolve())
+      await vi.advanceTimersByTimeAsync(0)
+      expect(host.queryData).toHaveBeenCalledTimes(5)
+      finish[4]()
+      expect((await done).filter((result) => result.status === 'rejected')).toHaveLength(4)
+    } finally { vi.useRealTimers() }
+  })
+})

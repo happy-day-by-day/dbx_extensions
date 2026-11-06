@@ -1,3 +1,4 @@
+import type { OfflineDocument } from './offline'
 import type { RecentConnection } from './recent'
 import type { DbxBridge, PluginContext } from './types'
 import { cleanConnectionName, connectionLabel } from './connectionLabels'
@@ -51,4 +52,20 @@ export function currentSessionDatabase(context: PluginContext, connectionId: str
 // 用户点击数据库时确认精确目标会话；失败保留在选择器，不切换或隐式连接其他数据库。
 export async function verifyDatabaseSession(bridge: DbxBridge, connectionId: string, database?: string): Promise<void> {
   await bridge.queryData({ connectionId, ...(database ? { database } : {}), sql: 'SELECT 1', maxRows: 1 })
+}
+
+export interface DocumentCacheSummary {
+  state: 'ready' | 'partial' | 'missing'
+  tableCount: number
+  cachedTableCount: number
+  lastSyncedAt: number | null
+}
+
+// Summaries describe cached documentation, never database connection status.
+export function summarizeDocumentCache(doc: OfflineDocument | null): DocumentCacheSummary {
+  if (!doc) return { state: 'missing', tableCount: 0, cachedTableCount: 0, lastSyncedAt: null }
+  const entries = doc.catalog.tables.map((table) => doc.details[JSON.stringify([table.table_schema, table.table_name])])
+  const count = entries.filter(Boolean).length
+  const complete = !doc.catalog.truncated && entries.every((entry) => entry && entry.savedAt >= doc.savedAt && !entry.value.warnings?.length)
+  return { state: complete ? 'ready' : 'partial', tableCount: entries.length, cachedTableCount: count, lastSyncedAt: doc.lastSyncedAt ?? null }
 }

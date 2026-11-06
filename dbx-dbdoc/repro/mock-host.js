@@ -168,7 +168,12 @@
   }
 
   let contextCb = null
-  const storageMap = new Map()
+  const persistentStorageKey = 'dbdoc.repro.cache-first'
+  let rememberedStorage = []
+  if (params.has('persist')) {
+    try { rememberedStorage = JSON.parse(localStorage.getItem(persistentStorageKey) || '[]') } catch { /* start empty */ }
+  }
+  const storageMap = new Map(rememberedStorage)
   let currentContext = params.has('empty') || params.has('picker') ? {} : { connectionId: 'c1', dbType: 'postgres', name: '示例业务数据库', database: 'appdb' }
   if (params.has('picker') || params.has('connections')) storageMap.set('dbdoc.recent', JSON.stringify([
     { connectionId: 'dev', name: '业务开发环境', dbType: 'mysql', database: 'public', ts: 600 },
@@ -272,10 +277,25 @@
       },
       set: async (key, value) => {
         if (nameSaveFailed && key === 'dbdoc.recent') throw new Error('模拟显示名称存储失败')
+        if (params.has('hostLimits')) {
+          if (new TextEncoder().encode(JSON.stringify(value)).length > 256 * 1024) throw new Error('plugin UI storage value exceeds 262144 bytes')
+          const next = new Map(storageMap); next.set(key, value)
+          if (new TextEncoder().encode(JSON.stringify(Object.fromEntries(next))).length > 1024 * 1024) throw new Error('plugin UI storage exceeds 1048576 bytes')
+        }
         storageMap.set(key, value)
+        if (params.has('persist')) localStorage.setItem(persistentStorageKey, JSON.stringify([...storageMap]))
       }
     },
     copy: async (text) => { lastCopied = text; updateStats() }
+  }
+  if (params.has('hostLimits')) {
+    const queryData = window.dbxPlugin.queryData
+    let active = 0
+    window.dbxPlugin.queryData = async (req) => {
+      if (active >= 4) throw new Error('At most 4 data queries may run at once; wait for one to finish')
+      active++
+      try { return await queryData(req) } finally { active-- }
+    }
   }
   if (!params.has('noWorkbench')) window.dbxPlugin.openWorkbench = async (id, context, options) => {
     if (params.has('openQueryFail')) throw new Error('模拟宿主打开查询失败')
@@ -356,6 +376,11 @@
     button('模拟目录读取失败', () => { catalogFailed = true })
     button('恢复目录读取', () => { catalogFailed = false })
     button('恢复字段搜索', () => { searchFailed = false })
+    button('模拟部分表读取失败', () => { partialFailed = true })
+    button('模拟表注释更新', () => {
+      for (const table of TABLES) table[2] = '更新后的' + table[2]
+      for (const column of COLUMNS) column[8] = '更新后的' + (column[8] || '字段注释')
+    })
     button('模拟全部表读取失败', () => { allDetailsFailed = true })
     button('恢复表元数据读取', () => { partialFailed = false; allDetailsFailed = false })
     button('模拟数据访问授权被拒绝', () => { denied = true })

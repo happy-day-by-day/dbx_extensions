@@ -19,6 +19,10 @@ export function createAppState() {
   let ctx = $state<PluginContext>({})
   let dbType = $state('')
   let degraded = $state(false)
+  let offline = $state(false)
+  let offlineSavedAt = $state(0)
+  let offlineDetailAt = $state(0)
+  let storageError = $state('')
   let catalog = $state<DbTable[]>([])
   let truncated = $state(false)
   let schemas = $state<string[]>([])
@@ -60,6 +64,10 @@ export function createAppState() {
     get phase() { return phase }, set phase(v: Phase) { phase = v },
     get ctx() { return ctx }, set ctx(v: PluginContext) { ctx = v },
     get dbType() { return dbType }, set dbType(v: string) { dbType = v },
+    get offline() { return offline }, set offline(v: boolean) { offline = v },
+    get offlineSavedAt() { return offlineSavedAt }, set offlineSavedAt(v: number) { offlineSavedAt = v },
+    get offlineDetailAt() { return offlineDetailAt }, set offlineDetailAt(v: number) { offlineDetailAt = v },
+    get storageError() { return storageError }, set storageError(v: string) { storageError = v },
     get degraded() { return degraded }, set degraded(v: boolean) { degraded = v },
     get catalog() { return catalog }, set catalog(v: DbTable[]) { catalog = v },
     get truncated() { return truncated }, set truncated(v: boolean) { truncated = v },

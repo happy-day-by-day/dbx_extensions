@@ -181,6 +181,18 @@ export function getBridge(): DbxBridge | null {
     get storage() { return host.capabilities?.storage === true },
     get clipboardWrite() { return host.capabilities?.clipboardWrite === true }
   }
+  // Share the host's four-query budget across metadata loading, search and exports.
+  let activeQueries = 0
+  const queryWaiters: Array<() => void> = []
+  async function acquireQuerySlot() {
+    if (activeQueries < 4) activeQueries += 1
+    else await new Promise<void>((resolve) => queryWaiters.push(resolve))
+    return () => {
+      const next = queryWaiters.shift()
+      if (next) next()
+      else activeQueries -= 1
+    }
+  }
   let titleUpdate: Promise<void> = Promise.resolve()
   let titleVersion = 0
   const bridge: DbxBridge = {
@@ -231,11 +243,15 @@ export function getBridge(): DbxBridge | null {
     },
     queryData: async (req) => {
       if (!capabilities.dataApi || typeof host.queryData !== 'function') throw new Error('当前 DBX 版本未提供只读数据查询，请升级 DBX 后重试')
+      const release = await acquireQuerySlot()
+      const pending = Promise.resolve().then(() => host.queryData(req))
+      // A UI timeout does not cancel the host query. Keep its slot until it actually settles.
+      void pending.then(release, release)
       // 插件侧兜底超时：宿主 queryData 卡死（无响应也无 reject）时 65 秒后以错误收场
       let timer: ReturnType<typeof setTimeout> | undefined
       try {
         const raw = await Promise.race([
-          host.queryData(req),
+          pending,
           new Promise((_, reject) => {
             timer = setTimeout(() => reject(new Error('查询超时（65 秒），请重试')), 65000)
           })
