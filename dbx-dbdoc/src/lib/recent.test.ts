@@ -32,7 +32,7 @@ describe('recent', () => {
     expect(recentKeyOf({ connectionId: 'c1', database: 'shop' })).not.toBe(recentKeyOf({ connectionId: 'c2', database: 'shop' }))
   })
 
-  it('mergeRecent 同键置顶覆盖、异键保留、容量截断', () => {
+  it('mergeRecent 同键置顶覆盖、异键保留，批量生成入口不被最近数量淘汰', () => {
     const base = [entry('c1', 'a', 1), entry('c1', 'b', 2), entry('c2', 'a', 3)]
     const merged = mergeRecent(base, entry('c1', 'a', 9))
     expect(merged).toHaveLength(3)
@@ -41,7 +41,7 @@ describe('recent', () => {
 
     const many: RecentConnection[] = []
     for (let i = 0; i < 10; i++) many.push(entry('c' + i, null, i))
-    expect(mergeRecent(many, entry('new', null, 99))).toHaveLength(8)
+    expect(mergeRecent(many, entry('new', null, 99))).toHaveLength(many.length + 1)
     expect(mergeRecent(many, entry('new', null, 99))[0].connectionId).toBe('new')
   })
 

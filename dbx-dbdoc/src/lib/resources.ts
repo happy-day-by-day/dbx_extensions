@@ -1,7 +1,9 @@
-import type { OfflineDocument } from './offline'
-import type { RecentConnection } from './recent'
+import { loadOffline, type OfflineDocument } from './offline'
+import { loadRecent, type RecentConnection } from './recent'
 import type { DbxBridge, PluginContext } from './types'
 import { cleanConnectionName, connectionLabel } from './connectionLabels'
+import { normalizeDbType } from './dialects/registry'
+import { runConcurrentQueue } from './store'
 
 export interface ResourceConnection {
   connectionId: string
@@ -33,6 +35,21 @@ export function groupConnections(recent: RecentConnection[], context: PluginCont
     return [active, ...groups.values()]
   }
   return [...groups.values()]
+}
+
+export interface DocumentResource {
+  key: string
+  connection: ResourceConnection
+  database: string
+}
+
+// A row belongs to an exact connection/database pair, including identically named databases.
+export function documentResources(connections: ResourceConnection[], refreshed?: { connectionId: string; databases: string[] }): DocumentResource[] {
+  return connections.flatMap((connection) => {
+    const databases = refreshed?.connectionId === connection.connectionId
+      ? mergeDatabases(connection.databases, refreshed.databases) : connection.databases
+    return databases.map((database) => ({ key: JSON.stringify([connection.connectionId, database]), connection, database }))
+  })
 }
 
 export function mergeDatabases(known: string[], available: string[]): string[] {
@@ -68,4 +85,18 @@ export function summarizeDocumentCache(doc: OfflineDocument | null): DocumentCac
   const count = entries.filter(Boolean).length
   const complete = !doc.catalog.truncated && entries.every((entry) => entry && entry.savedAt >= doc.savedAt && !entry.value.warnings?.length)
   return { state: complete ? 'ready' : 'partial', tableCount: entries.length, cachedTableCount: count, lastSyncedAt: doc.lastSyncedAt ?? null }
+}
+
+// Refreshing the picker only reloads local records and cache summaries, never database sessions.
+export async function loadLocalDocumentList(bridge: DbxBridge | null, context: PluginContext = {}) {
+  const recent = await loadRecent(bridge)
+  const documents = documentResources(groupConnections(recent, context))
+  const cacheEntries = new Map<string, DocumentCacheSummary>()
+  if (bridge?.capabilities?.storage) {
+    await runConcurrentQueue(documents, async ({ key, connection, database }) => {
+      const doc = await loadOffline(bridge, { connectionId: connection.connectionId, database, dbType: normalizeDbType(connection.dbType) })
+      cacheEntries.set(key, summarizeDocumentCache(doc))
+    }, { concurrency: 4 })
+  }
+  return { recent, cacheEntries }
 }

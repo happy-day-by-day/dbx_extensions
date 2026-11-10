@@ -1,5 +1,5 @@
-// 最近使用连接的记忆（宿主无连接枚举 API，用 host.storage 记住打开过的连接）。
-// 键为 连接+库：同一连接打开不同库视为两个入口；最新在前，容量 8。
+// 本地文档入口记录：用 host.storage 保留打开过及批量生成的数据库。
+// 键为连接+库，最新在前；不按最近使用数量淘汰已生成文档的入口。
 import type { DbxBridge, PluginContext } from './types'
 import { cleanConnectionName } from './connectionLabels'
 
@@ -12,7 +12,6 @@ export interface RecentConnection {
 }
 
 const STORAGE_KEY = 'dbdoc.recent'
-const LIMIT = 8
 const pendingWrites = new WeakMap<DbxBridge, Promise<RecentConnection[]>>()
 
 export const recentKeyOf = (entry: Pick<RecentConnection, 'connectionId' | 'database'>): string =>
@@ -27,7 +26,7 @@ export function mergeRecent(list: RecentConnection[], entry: RecentConnection): 
   const dbType = entry.dbType || prior.find((item) => item.dbType)?.dbType || ''
   const rest = list.filter((item) => recentKeyOf(item) !== key).map((item) =>
     item.connectionId === entry.connectionId ? { ...item, name, dbType } : item)
-  return [{ ...entry, name, dbType }, ...rest].slice(0, LIMIT)
+  return [{ ...entry, name, dbType }, ...rest]
 }
 
 // 容错解析：损坏/异形数据按空列表处理。

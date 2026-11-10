@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "packagedBinary": true,
+  "protocolVersion": 1,
+  "version": "0.4.26",
+  "snapshotBytes": 4000000,
+  "restartedProcesses": 3,
+  "sha256": "5e36a111d9fb5a733c2b46b3418f53c6a3e0b0d5a5dcd9e5e5f7a4e0e16113a2",
+  "interruptedWriteKeepsPrevious": true
+}

@@ -1,3 +1,11 @@
+export interface DirectoryGrant {
+  id: string; displayName: string; displayPath: string; mode: 'read' | 'readwrite';
+  status: 'unchecked' | 'ready' | 'unavailable' | 'identityChanged' | 'revoked';
+  persistent: boolean; preferred: boolean; createdAt: number; chunkBytes: number; maxFileBytes: number
+}
+export interface SnapshotDirectoryStatus {
+  status: 'unconfigured' | 'unsupported' | DirectoryGrant['status']; grant: DirectoryGrant | null; error: string
+}
 // Task 2 定义的桥接接口自 Task 3 起迁至本文件，
 // bridge.ts 通过 `export type { ... }` 转发，调用方 import 路径不变。
 export interface QueryResult {
@@ -15,8 +23,20 @@ export interface PluginContext {
   schema?: string
   table?: string
 }
+export interface HostConnection {
+  connectionId: string
+  name: string
+  dbType: string
+  database?: string
+  connected: boolean
+}
 export interface DbxBridge {
-  capabilities?: { dataApi: boolean; schemaMetadataApi: boolean; storage: boolean; clipboardWrite: boolean }
+  capabilities?: { dataApi: boolean; schemaMetadataApi: boolean; storage: boolean; clipboardWrite: boolean; connectionsApi?: boolean }
+  getSnapshotDirectoryStatus?(): Promise<SnapshotDirectoryStatus>
+  onSnapshotDirectoryChange?(callback: (state: SnapshotDirectoryStatus) => void): () => void
+  configureSnapshotDirectory?(initialPath?: string): Promise<boolean>
+  revokeSnapshotDirectory?(): Promise<void>
+  getConnections?(): Promise<HostConnection[]>
   ready(): Promise<void>
   getContext(): Promise<PluginContext | null>
   onContextChange(cb: (ctx: PluginContext) => void): () => void

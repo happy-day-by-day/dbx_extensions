@@ -1,0 +1,338 @@
+{
+  "version": "0.4.30",
+  "date": "2026-11-10",
+  "scope": "document picker row spacing and intrinsic row height",
+  "svelteCheck": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "build": true,
+  "browser": {
+    "passed": true,
+    "stage": "after",
+    "measurements": [
+      {
+        "width": 1280,
+        "normalRows": [
+          {
+            "height": 47,
+            "text": "business_1",
+            "minHeight": "0px",
+            "paddingTop": "7px"
+          },
+          {
+            "height": 47,
+            "text": "business_2",
+            "minHeight": "0px",
+            "paddingTop": "7px"
+          },
+          {
+            "height": 47,
+            "text": "business_3",
+            "minHeight": "0px",
+            "paddingTop": "7px"
+          }
+        ],
+        "longRow": {
+          "height": 62,
+          "text": "database_with_a_very_long_name_that_must_remain_readable_in_narrow_views",
+          "minHeight": "0px",
+          "paddingTop": "7px"
+        },
+        "visibleRows": 11
+      },
+      {
+        "width": 900,
+        "normalRows": [
+          {
+            "height": 47,
+            "text": "business_1",
+            "minHeight": "0px",
+            "paddingTop": "7px"
+          },
+          {
+            "height": 47,
+            "text": "business_2",
+            "minHeight": "0px",
+            "paddingTop": "7px"
+          },
+          {
+            "height": 47,
+            "text": "business_3",
+            "minHeight": "0px",
+            "paddingTop": "7px"
+          }
+        ],
+        "longRow": {
+          "height": 62,
+          "text": "database_with_a_very_long_name_that_must_remain_readable_in_narrow_views",
+          "minHeight": "0px",
+          "paddingTop": "7px"
+        },
+        "visibleRows": 11
+      },
+      {
+        "width": 760,
+        "normalRows": [
+          {
+            "height": 64,
+            "text": "business_1",
+            "minHeight": "0px",
+            "paddingTop": "7px"
+          },
+          {
+            "height": 64,
+            "text": "business_2",
+            "minHeight": "0px",
+            "paddingTop": "7px"
+          },
+          {
+            "height": 64,
+            "text": "business_3",
+            "minHeight": "0px",
+            "paddingTop": "7px"
+          }
+        ],
+        "longRow": {
+          "height": 79,
+          "text": "database_with_a_very_long_name_that_must_remain_readable_in_narrow_views",
+          "minHeight": "0px",
+          "paddingTop": "7px"
+        },
+        "visibleRows": 8
+      },
+      {
+        "width": 390,
+        "normalRows": [
+          {
+            "height": 58,
+            "text": "business_1",
+            "minHeight": "0px",
+            "paddingTop": "6px"
+          },
+          {
+            "height": 58,
+            "text": "business_2",
+            "minHeight": "0px",
+            "paddingTop": "6px"
+          },
+          {
+            "height": 58,
+            "text": "business_3",
+            "minHeight": "0px",
+            "paddingTop": "6px"
+          }
+        ],
+        "longRow": {
+          "height": 99.5,
+          "text": "database_with_a_very_long_name_that_must_remain_readable_in_narrow_views",
+          "minHeight": "0px",
+          "paddingTop": "6px"
+        },
+        "visibleRows": 9
+      }
+    ],
+    "checks": [
+      "no horizontal overflow at 1280/900/760/390",
+      "long names wrap",
+      "database sorting",
+      "local search",
+      "cached filter",
+      "keyboard opens cached document",
+      "zero SQL queries"
+    ],
+    "pageErrors": []
+  },
+  "before": [
+    {
+      "width": 1280,
+      "normalRows": [
+        {
+          "height": 77,
+          "text": "business_1",
+          "minHeight": "77px",
+          "paddingTop": "14px"
+        },
+        {
+          "height": 77,
+          "text": "business_2",
+          "minHeight": "77px",
+          "paddingTop": "14px"
+        },
+        {
+          "height": 77,
+          "text": "business_3",
+          "minHeight": "77px",
+          "paddingTop": "14px"
+        }
+      ],
+      "longRow": {
+        "height": 79,
+        "text": "database_with_a_very_long_name_that_must_remain_readable_in_narrow_views",
+        "minHeight": "77px",
+        "paddingTop": "14px"
+      },
+      "visibleRows": 7
+    },
+    {
+      "width": 900,
+      "normalRows": [
+        {
+          "height": 77,
+          "text": "business_1",
+          "minHeight": "77px",
+          "paddingTop": "14px"
+        },
+        {
+          "height": 77,
+          "text": "business_2",
+          "minHeight": "77px",
+          "paddingTop": "14px"
+        },
+        {
+          "height": 77,
+          "text": "business_3",
+          "minHeight": "77px",
+          "paddingTop": "14px"
+        }
+      ],
+      "longRow": {
+        "height": 79,
+        "text": "database_with_a_very_long_name_that_must_remain_readable_in_narrow_views",
+        "minHeight": "77px",
+        "paddingTop": "14px"
+      },
+      "visibleRows": 7
+    },
+    {
+      "width": 760,
+      "normalRows": [
+        {
+          "height": 84,
+          "text": "business_1",
+          "minHeight": "77px",
+          "paddingTop": "14px"
+        },
+        {
+          "height": 84,
+          "text": "business_2",
+          "minHeight": "77px",
+          "paddingTop": "14px"
+        },
+        {
+          "height": 84,
+          "text": "business_3",
+          "minHeight": "77px",
+          "paddingTop": "14px"
+        }
+      ],
+      "longRow": {
+        "height": 99,
+        "text": "database_with_a_very_long_name_that_must_remain_readable_in_narrow_views",
+        "minHeight": "77px",
+        "paddingTop": "14px"
+      },
+      "visibleRows": 6
+    },
+    {
+      "width": 390,
+      "normalRows": [
+        {
+          "height": 78,
+          "text": "business_1",
+          "minHeight": "78px",
+          "paddingTop": "12px"
+        },
+        {
+          "height": 78,
+          "text": "business_2",
+          "minHeight": "78px",
+          "paddingTop": "12px"
+        },
+        {
+          "height": 78,
+          "text": "business_3",
+          "minHeight": "78px",
+          "paddingTop": "12px"
+        }
+      ],
+      "longRow": {
+        "height": 117.5,
+        "text": "database_with_a_very_long_name_that_must_remain_readable_in_narrow_views",
+        "minHeight": "78px",
+        "paddingTop": "12px"
+      },
+      "visibleRows": 6
+    }
+  ],
+  "unitTests": {
+    "passed": 284,
+    "files": 25,
+    "releaseAuditDate": "2026-11-10"
+  },
+  "backendTests": {
+    "passed": true,
+    "raceDetector": true,
+    "releaseAuditDate": "2026-11-10"
+  },
+  "package": {
+    "version": "0.4.30",
+    "target": "universal",
+    "sha256": "3f291393fca46308f88b8d65706efa25001034308f91fe8c1082c46189ad3cd9",
+    "size": 8511760,
+    "checksumsVerified": 14,
+    "manifestSemanticMatch": true,
+    "frontendAndAssetsMatch": true,
+    "hostApi": "^1.4",
+    "hostPatchRequired": false,
+    "backends": [
+      {
+        "target": "darwin-x64",
+        "bytes": 3309936,
+        "sha256": "2d9ffc7430066a29105925ca88afc5fde1ce1322174a24e6ea638f2915189bf1",
+        "architectureVerified": true
+      },
+      {
+        "target": "darwin-arm64",
+        "bytes": 3121218,
+        "sha256": "6ac36f38f34b3934df9d2c31070721a9b65a11d1ae3cbeb6ff6bbb3da6302815",
+        "architectureVerified": true
+      },
+      {
+        "target": "linux-x64",
+        "bytes": 3309692,
+        "sha256": "a2a025a935fc6bfa39f54fed3789f671268350a7e75e599a8f0d1fb35e0189ba",
+        "architectureVerified": true
+      },
+      {
+        "target": "linux-arm64",
+        "bytes": 3145852,
+        "sha256": "e33bc9663101a879565bc5bf803c6c313bd5f006458247bfe1b20ce45e5bf531",
+        "architectureVerified": true
+      },
+      {
+        "target": "windows-x64",
+        "bytes": 3427840,
+        "sha256": "4626b2539bc2e323586409bb91e49d4d39eaffa35590161bdd445189ce0d1ae6",
+        "architectureVerified": true
+      },
+      {
+        "target": "windows-arm64",
+        "bytes": 3141120,
+        "sha256": "7d0d1647cc455c13c9b2d90eba7eeeb09c124348db4948b6c6ace06e025729ef",
+        "architectureVerified": true
+      }
+    ],
+    "packagedLauncherProtocol": {
+      "passed": true,
+      "platform": "darwin",
+      "arch": "arm64",
+      "restartedProcesses": 3,
+      "snapshotBytes": 4400000,
+      "customDirectoryRestored": true,
+      "interruptedWriteKeepsPrevious": true,
+      "extractionWithoutExecutableBitsSupported": true
+    },
+    "signed": false
+  }
+}

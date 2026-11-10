@@ -1,0 +1,159 @@
+{
+  "version": "0.4.28",
+  "date": "2026-11-09",
+  "hostPatchRequired": false,
+  "hostModifiedOrReinstalled": false,
+  "plugin": {
+    "tests": {
+      "files": 25,
+      "passed": 284
+    },
+    "svelteCheck": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "build": true
+  },
+  "backend": {
+    "tests": 14,
+    "raceDetector": true,
+    "goToolchain": "go1.27.3"
+  },
+  "originalHostCompatibility": {
+    "passed": true,
+    "baseCommit": "28a60d061b1b063d192da9935c08e06b81ce8be5",
+    "unmodifiedManifestSourceSha256": "51de0bdeb40d313fd393296748cf6c3dba1cb664d1ac3d0ef938b5f0a4ca601c",
+    "hostApi": "1.4.0",
+    "manifestAndEntrypointAccepted": true,
+    "test": "universal_package_accepts_unmodified_api_14_host"
+  },
+  "package": {
+    "version": "0.4.28",
+    "target": "universal",
+    "sha256": "066c539a2f6689f81ddff84eca288e8771794f7a1485d8a47686e9d87f2fbb93",
+    "size": 8510625,
+    "checksumsVerified": 14,
+    "manifestSemanticMatch": true,
+    "frontendAndAssetsMatch": true,
+    "hostApi": "^1.4",
+    "hostPatchRequired": false,
+    "backends": [
+      {
+        "target": "darwin-x64",
+        "bytes": 3309936,
+        "sha256": "3dc173bcfb8e4e137e6a8b6e26447e121805a56d6435db2beb62215f3f79bfbe",
+        "architectureVerified": true
+      },
+      {
+        "target": "darwin-arm64",
+        "bytes": 3121218,
+        "sha256": "df97425d61dba971232cb001b2e544077f58ccc734a9df8b1d68a48b01083610",
+        "architectureVerified": true
+      },
+      {
+        "target": "linux-x64",
+        "bytes": 3309692,
+        "sha256": "ab0ac6b94dbd5c9d29575c5c905f41724731c35ae0b2486c9187340db70c16d7",
+        "architectureVerified": true
+      },
+      {
+        "target": "linux-arm64",
+        "bytes": 3145852,
+        "sha256": "c9680ceec2a832b51036c353ca794b240bef6b04c5d3dfd6c094bba63c46ed2d",
+        "architectureVerified": true
+      },
+      {
+        "target": "windows-x64",
+        "bytes": 3427840,
+        "sha256": "cfc56a8eff59cb485942df33462e4f96975b3f8ce76dd11593a35fa7bacc6ece",
+        "architectureVerified": true
+      },
+      {
+        "target": "windows-arm64",
+        "bytes": 3141120,
+        "sha256": "98fb178bed783ef60c904308a59c308a295c69ae90494c366ce18036dd176207",
+        "architectureVerified": true
+      }
+    ],
+    "packagedLauncherProtocol": {
+      "passed": true,
+      "platform": "darwin",
+      "arch": "arm64",
+      "restartedProcesses": 3,
+      "snapshotBytes": 4400000,
+      "customDirectoryRestored": true,
+      "interruptedWriteKeepsPrevious": true,
+      "extractionWithoutExecutableBitsSupported": true
+    },
+    "signed": false
+  },
+  "unixLauncherRouting": {
+    "passed": true,
+    "unixRoutingTargets": [
+      "darwin-arm64",
+      "darwin-x64",
+      "linux-arm64",
+      "linux-x64"
+    ],
+    "invalidSystemAndCpuRejected": true,
+    "pathsWithSpaces": true,
+    "missingExecutableBitsRepaired": true,
+    "windowsBatchRuntimeTested": false
+  },
+  "realPackagedBackendBrowser": {
+    "passed": true,
+    "packagedNativeBackend": true,
+    "files": [
+      {
+        "name": "dbdoc-62b7f7bd3baf5af6ed7e94232c103a7255148b639057288736ce51efec43d0f3.json",
+        "size": 351
+      },
+      {
+        "name": "dbdoc-c04c2229b2432ce57d9093a7ac3dfca6b3d4fc45f868133c6b7bac899f074016.json",
+        "size": 2205805
+      },
+      {
+        "name": "dbdoc-c071ca1076344f6327a13de663d2ae6f4de242a720ef2fd1b54783dedce852b9.json",
+        "size": 2205800
+      }
+    ],
+    "scenarios": [
+      "configure once",
+      "2 snapshots each over 1 MiB",
+      "local list refresh no SQL",
+      "reload with persistent grant no SQL",
+      "open cached database no SQL",
+      "failed commit preserves all files byte for byte"
+    ],
+    "errors": []
+  },
+  "restartAndOffline": {
+    "passed": true,
+    "packagedBackendProcessRestart": true,
+    "lostUiPreferencesRecovered": true,
+    "pickerCalls": 0,
+    "queries": 0,
+    "markdownBytes": 4272092,
+    "scenarios": [
+      "restore real files after host restart",
+      "field name and comment search from cache",
+      "whole database Markdown export from cache",
+      "720px modal and escape focus"
+    ],
+    "errors": []
+  },
+  "disableAndReconfigure": {
+    "passed": true,
+    "scenarios": [
+      "plugin backend revocation persists after reload without UI preferences",
+      "never falls back to an older grant",
+      "reauthorization restores original files with no SQL or file changes"
+    ]
+  },
+  "limitations": [
+    "Packaged backend protocol and browser integration executed on macOS arm64. The installed DBX desktop application was not replaced or used for the browser harness.",
+    "Windows/Linux backends are cross-compiled with verified executable architecture; real desktop execution on those platforms is pending.",
+    "The Windows batch dispatcher uses the original host .bat launcher mechanism but was not executed on Windows.",
+    "Custom folder configuration uses an absolute path and existing OS permissions, not the optional host directory grant extension."
+  ]
+}

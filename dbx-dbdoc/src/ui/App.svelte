@@ -16,6 +16,7 @@
   import EmptyState from './components/EmptyState.svelte'
   import ExportDialog from './components/ExportDialog.svelte'
   import Guide from './components/Guide.svelte'
+  import SnapshotDirectoryDialog from './components/SnapshotDirectoryDialog.svelte'
   import Header from './components/Header.svelte'
   import SqlDialog from './components/SqlDialog.svelte'
   import SidebarResize from './components/SidebarResize.svelte'
@@ -37,7 +38,10 @@
   let syncSeq = 0
   let sqlOpen = $state(false)
   let exportOpen = $state(false)
+  let snapshotOpen = $state(false)
+  let snapshotChanged = $state(0)
   let pickerOpen = $state(false)
+  let pickerCacheChanged = false
   let queryMode = $state(false)
   let hostInitialized = $state(false)
   let exportMode = $state<'table' | 'schema'>('table')
@@ -66,6 +70,8 @@
     const bridge = getBridge()
     const ctx = { ...app.ctx }
     if (!bridge || !ctx.connectionId) return
+    const location = await bridge.getSnapshotDirectoryStatus?.()
+    if (location && location.status !== 'ready') { snapshotOpen = true; return }
     const previous = offlineDocument
     const seq = ++catalogSeq
     const sync = ++syncSeq
@@ -312,6 +318,7 @@
         app.phase = 'ready'
         return
       }
+      await bridge.getSnapshotDirectoryStatus?.()
       const width = Number(await bridge.storageGet('dbdoc.sidebarWidth').catch(() => null))
       if (width >= 224 && width <= 520) sidebarWidth = width
       const ctx = await bridge.getContext()
@@ -407,15 +414,20 @@
   }
   function chooseResource(ctx: PluginContext) {
     pickerOpen = false
-    if (app.phase === 'ready' && ctx.connectionId === app.ctx.connectionId && ctx.database === app.ctx.database) {
+    const cacheChanged = pickerCacheChanged
+    pickerCacheChanged = false
+    if (!cacheChanged && app.phase === 'ready' && ctx.connectionId === app.ctx.connectionId && ctx.database === app.ctx.database) {
       app.ctx.name = cleanConnectionName(ctx.name, ctx.connectionId) || app.ctx.name
       return
     }
     app.ctx = ctx
     void boot()
   }
-  function changeResource() { pickerOpen = true }
-  function renameConnection(connectionId: string, name: string) { if (connectionId === app.ctx.connectionId) app.ctx.name = name }
+  function changeResource() { pickerCacheChanged = false; pickerOpen = true }
+  function closeResourcePicker() {
+    pickerOpen = false
+    if (pickerCacheChanged) { pickerCacheChanged = false; void boot() }
+  }
   function openExport(mode: 'table' | 'schema') { exportMode = mode; exportOpen = true }
   function saveSidebar() { void getBridge()?.storageSet('dbdoc.sidebarWidth', String(sidebarWidth)).catch(() => undefined) }
   $effect(() => {
@@ -426,6 +438,7 @@
   })
 </script>
 
+<div style="display: contents" inert={snapshotOpen}>
 {#if queryMode && app.phase === 'ready'}
   <QueryWorkbench context={app.ctx} />
 {:else if queryMode && app.phase === 'error'}
@@ -433,7 +446,7 @@
 {:else if app.phase === 'booting'}
   <div class="boot" role="status"><span class="spinner"></span>正在打开数据库文档…</div>
 {:else if app.phase === 'guide'}
-  <Guide context={app.ctx} diagnostics={app.diagMessage || null} onopen={chooseResource} onrename={renameConnection} />
+  <Guide onsnapshot={() => snapshotOpen = true} {snapshotChanged} context={app.ctx} diagnostics={app.diagMessage || null} onopen={chooseResource} syncBlocked={app.catalogRefreshing || syncBusy} />
 {:else if app.phase === 'unsupported'}
   <EmptyState icon="database" title="暂不支持该数据库类型" description="{app.dbType} 暂不支持完整文档；可从具体表的右键菜单查看基础字段。" actionLabel="选择其他连接" onaction={changeResource} />
 {:else if app.phase === 'denied'}
@@ -444,7 +457,7 @@
     actionLabel="重试" onaction={() => void (app.ctx.connectionId ? boot() : initApp())} secondaryLabel="切换连接与数据库" onsecondary={changeResource} />
 {:else}
   <div class="layout" inert={sqlOpen || exportOpen || pickerOpen}>
-    <Header connectionName={connectionSubtitle(app.ctx) || connectionLabel(app.ctx)} database={app.ctx.database || ''} dbType={app.dbType}
+    <Header onsnapshot={() => snapshotOpen = true} connectionName={connectionSubtitle(app.ctx) || connectionLabel(app.ctx)} database={app.ctx.database || ''} dbType={app.dbType}
       tableCount={app.catalog.length} columnCount={app.catalog.reduce((sum, t) => sum + (t.column_count || 0), 0)}
       truncated={app.truncated} busy={app.catalogRefreshing} degraded={app.degraded} offline={app.offline}
       offlineInfo={app.offline ? { savedAt: app.offlineSavedAt, lastSyncedAt: offlineDocument?.lastSyncedAt, detailAt: app.offlineDetailAt, cachedCount: cachedTableCount,
@@ -478,8 +491,10 @@
 {/if}
 {#if sqlOpen}<SqlDialog state={app} onclose={() => (sqlOpen = false)} />{/if}
 {#if exportOpen}<ExportDialog state={app} initialMode={exportMode} getOfflineDocument={() => offlineDocument} onclose={() => (exportOpen = false)} />{/if}
-{#if pickerOpen}<div class="resource-overlay"><Guide context={{ ...app.ctx, dbType: app.dbType }}
-  diagnostics={app.diagMessage || null} onopen={chooseResource} onrename={renameConnection} onclose={() => (pickerOpen = false)} returnLabel={app.phase === 'ready' ? '返回文档' : '返回'} /></div>{/if}
+{#if pickerOpen}<div class="resource-overlay"><Guide onsnapshot={() => snapshotOpen = true} {snapshotChanged} context={{ ...app.ctx, dbType: app.dbType }}
+  diagnostics={app.diagMessage || null} onopen={chooseResource} syncBlocked={app.catalogRefreshing || syncBusy} oncacheupdated={(target) => { if (target.connectionId === app.ctx.connectionId && target.database === app.ctx.database) pickerCacheChanged = true }} onclose={closeResourcePicker} returnLabel={app.phase === 'ready' ? '返回文档' : '返回'} /></div>{/if}
+
+</div>
 
 <style>
   .sync-issues { flex: none; padding: 8px 20px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted); }
@@ -487,3 +502,5 @@
   .sync-issues ul { max-height: 180px; overflow: auto; padding-left: 20px; }
   .sync-issues li { margin: 8px 0; overflow-wrap: anywhere; }
 </style>
+
+{#if snapshotOpen}<SnapshotDirectoryDialog onclose={() => { snapshotOpen = false }} onchanged={() => { snapshotChanged += 1; if (app.ctx.connectionId) void boot() }} />{/if}

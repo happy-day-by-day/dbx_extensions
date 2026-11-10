@@ -1,0 +1,45 @@
+{
+  "version": "0.4.24",
+  "unitTests": {
+    "files": 24,
+    "passed": 257
+  },
+  "svelteCheck": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "build": true,
+  "browser": {
+    "passed": true,
+    "scenarios": [
+      "local refresh uses zero queries",
+      "discovery uses zero queries",
+      "keyboard focus trapped",
+      "connected appdb synced",
+      "closed events skipped",
+      "summaries refreshed",
+      "narrow layout",
+      "Escape restores focus",
+      "old host no queries",
+      "no connected targets no queries"
+    ],
+    "queryCount": 19,
+    "errors": []
+  },
+  "additionalBrowser": {
+    "passed": true,
+    "scenarios": [
+      "stop finishes current database only",
+      "current document reloads updated cache without SQL",
+      "partial failure preserves full snapshot byte-for-byte",
+      "host four-query limit enabled",
+      "dark theme"
+    ],
+    "errors": []
+  },
+  "scope": "Saved document databases and configured default databases on explicitly connected DBX connections; exact database session checked before reading metadata.",
+  "officialContracts": [
+    "https://github.com/t8y2/dbx/blob/main/apps/desktop/src/types/pluginConnection.ts",
+    "https://github.com/t8y2/dbx/blob/main/apps/desktop/src/components/plugins/PluginWorkbenchHost.vue"
+  ]
+}

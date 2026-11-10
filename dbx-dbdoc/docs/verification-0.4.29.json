@@ -1,0 +1,98 @@
+{
+  "version": "0.4.29",
+  "date": "2026-11-09",
+  "plugin": {
+    "tests": {
+      "files": 25,
+      "passed": 284
+    },
+    "svelteCheck": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "build": true
+  },
+  "sortingBrowser": {
+    "passed": true,
+    "scenarios": [
+      "all three headers ascending and descending",
+      "natural numeric name order",
+      "equal timestamps retain original order",
+      "missing and legacy successful sync times always last",
+      "search retains sort",
+      "cached filter retains sort",
+      "local refresh retains sort",
+      "keyboard Enter sorts",
+      "narrow selector sorts all columns and restores default",
+      "no horizontal overflow",
+      "zero database queries",
+      "no storage mutation"
+    ],
+    "databaseQueries": 0,
+    "pageErrors": []
+  },
+  "package": {
+    "version": "0.4.29",
+    "target": "universal",
+    "sha256": "c150c8137b918b5144392aa5b2a2d9e97daa09618fe7e1d154b82d69ea8fc187",
+    "size": 8511769,
+    "checksumsVerified": 14,
+    "manifestSemanticMatch": true,
+    "frontendAndAssetsMatch": true,
+    "hostApi": "^1.4",
+    "hostPatchRequired": false,
+    "backends": [
+      {
+        "target": "darwin-x64",
+        "bytes": 3309936,
+        "sha256": "7f1e14bf9274663100531996bc1112f103645ba95f0a9fa20f25e595cb67fb47",
+        "architectureVerified": true
+      },
+      {
+        "target": "darwin-arm64",
+        "bytes": 3121218,
+        "sha256": "2bcb77aaa61a201c3a3e9f164e53a4e72356724b057fb6a0ff3350e320d90857",
+        "architectureVerified": true
+      },
+      {
+        "target": "linux-x64",
+        "bytes": 3309692,
+        "sha256": "9ba01edfcb67468c9bb742ad72403ae1762d3da4639050cc1d975ebab1ace2bf",
+        "architectureVerified": true
+      },
+      {
+        "target": "linux-arm64",
+        "bytes": 3145852,
+        "sha256": "d0f838c426c3c0d62311e848534143f8d2e1f9983d5b56942fd23fcadd529bc9",
+        "architectureVerified": true
+      },
+      {
+        "target": "windows-x64",
+        "bytes": 3427840,
+        "sha256": "27881b53642d0f73aaed8a452e23ecf14e23b48a4445cb62c77157e7f88d3a2a",
+        "architectureVerified": true
+      },
+      {
+        "target": "windows-arm64",
+        "bytes": 3141120,
+        "sha256": "a4b962291db48568d6ce41851b3e113c63f88411a276a21e99302e7483eaea94",
+        "architectureVerified": true
+      }
+    ],
+    "packagedLauncherProtocol": {
+      "passed": true,
+      "platform": "darwin",
+      "arch": "arm64",
+      "restartedProcesses": 3,
+      "snapshotBytes": 4400000,
+      "customDirectoryRestored": true,
+      "interruptedWriteKeepsPrevious": true,
+      "extractionWithoutExecutableBitsSupported": true
+    },
+    "signed": false
+  },
+  "limitations": [
+    "Browser sorting verification used a mock DBX host with real compiled UI.",
+    "Packaged launcher and snapshot protocol executed on macOS arm64; Windows and Linux were cross-compiled with executable architecture verified, without runtime testing."
+  ]
+}

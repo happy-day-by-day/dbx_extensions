@@ -26,6 +26,59 @@ const mkHost = () => ({
 })
 
 describe('bridge', () => {
+  it('uses the existing sidecar API without host directory capabilities or UI cache writes', async () => {
+    const { getBridge } = await importBridge()
+    const grant = { id: 'native', preferred: true, status: 'ready', persistent: true }
+    const host = { ...mkHost(), invoke: vi.fn(async (method: string) => {
+      if (method === 'snapshotDirectory/listGrants') return [grant]
+      if (method === 'snapshotDirectory/restore') return grant
+      throw new Error('[NOT_FOUND] missing')
+    }) }
+    Object.assign(globalThis, { window: { dbxPlugin: host } })
+    expect((await getBridge()!.getSnapshotDirectoryStatus!()).status).toBe('ready')
+    await expect(getBridge()!.storageSet('dbdoc.offline.v1.x', 'full snapshot')).rejects.toThrow('missing')
+    expect(host.invoke).toHaveBeenCalledWith('snapshotDirectory/listGrants', {})
+    expect(host.storage.set).not.toHaveBeenCalled()
+  })
+
+  it('reads explicit connection state through the official API without querying or exposing extra fields', async () => {
+    const { getBridge } = await importBridge()
+    const host = { ...mkHost(), capabilities: { ...mkHost().capabilities, connectionsApi: true }, getConnections: vi.fn().mockResolvedValue([
+      { id: 'a', name: '业务 QA', dbType: 'mysql', database: 'shop', connected: true, password: 'private' },
+      { id: 'b', name: '分析', databaseType: 'postgres', isConnected: true },
+      { id: 'c', name: '未知状态' }, { id: 'd', connected: false, isConnected: true }, null
+    ]) }
+    Object.assign(globalThis, { window: { dbxPlugin: host } })
+    expect(await getBridge()!.getConnections!()).toEqual([
+      { connectionId: 'a', name: '业务 QA', dbType: 'mysql', database: 'shop', connected: true },
+      { connectionId: 'b', name: '分析', dbType: 'postgres', connected: true },
+      { connectionId: 'c', name: '未知状态', dbType: '', connected: false },
+      { connectionId: 'd', name: '', dbType: '', connected: false }
+    ])
+    expect(host.queryData).not.toHaveBeenCalled()
+  })
+
+  it.each(['getAll', 'listConnections', 'list'])('supports the official connection API alias: %s', async (method) => {
+    const { getBridge } = await importBridge()
+    const list = vi.fn().mockResolvedValue([{ id: 'a', dbType: 'mysql', isConnected: true }])
+    const host = { ...mkHost(), capabilities: { ...mkHost().capabilities, connectionsApi: true },
+      ...(method === 'listConnections' ? { listConnections: list } : { connections: { [method]: list } }) }
+    Object.assign(globalThis, { window: { dbxPlugin: host } })
+    expect((await getBridge()!.getConnections!())[0].connected).toBe(true)
+    expect(list).toHaveBeenCalledTimes(1)
+    expect(host.queryData).not.toHaveBeenCalled()
+  })
+
+  it('does not enumerate or probe connections on old hosts without the capability', async () => {
+    const { getBridge } = await importBridge()
+    const host = { ...mkHost(), getConnections: vi.fn(), request: vi.fn() }
+    Object.assign(globalThis, { window: { dbxPlugin: host } })
+    await expect(getBridge()!.getConnections!()).rejects.toThrow('升级 DBX')
+    expect(host.getConnections).not.toHaveBeenCalled()
+    expect(host.queryData).not.toHaveBeenCalled()
+    expect(host.request).not.toHaveBeenCalled()
+  })
+
   it('updates the calling workbench title through the host API', async () => {
     const { getBridge } = await importBridge()
     const host = { ...mkHost(), capabilities: { ...mkHost().capabilities, workbenchTitle: true }, setTitle: vi.fn().mockResolvedValue(undefined) }

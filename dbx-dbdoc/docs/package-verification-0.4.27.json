@@ -1,0 +1,12 @@
+{
+  "target": "universal",
+  "version": "0.4.27",
+  "sha256": "195efd7dd8c5fe33ccafbf40ef1df919675e8d318dcb718ff7cce723a9241be4",
+  "size": 96067,
+  "checksumsVerified": 5,
+  "frontendAndAssetsMatch": true,
+  "manifestSemanticMatch": true,
+  "hostApi": "^1.5",
+  "nativeExecutable": false,
+  "signed": false
+}

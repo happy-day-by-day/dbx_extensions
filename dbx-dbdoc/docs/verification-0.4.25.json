@@ -1,0 +1,58 @@
+{
+  "version": "0.4.25",
+  "unitTests": {
+    "files": 24,
+    "passed": 263
+  },
+  "svelteCheck": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "build": true,
+  "browser": {
+    "passed": true,
+    "scenarios": [
+      "local refresh uses zero queries",
+      "discovery reads database catalog and includes never cached database",
+      "keyboard focus trapped",
+      "connected appdb synced",
+      "closed events skipped",
+      "summaries refreshed",
+      "narrow layout",
+      "Escape restores focus",
+      "old host no queries",
+      "no connected targets no queries"
+    ],
+    "queryCount": 38,
+    "errors": []
+  },
+  "additionalBrowser": {
+    "passed": true,
+    "scenarios": [
+      "stop finishes current database only",
+      "current document reloads updated cache without SQL",
+      "partial failure preserves full snapshot byte-for-byte",
+      "host four-query limit enabled",
+      "dark theme"
+    ],
+    "errors": []
+  },
+  "newDatabaseBrowser": {
+    "passed": true,
+    "scenarios": [
+      "no saved documents generates 12 new databases",
+      "all 12 cached entries retained in list",
+      "reload preserves all 12 entries with zero queries",
+      "newly generated database opens from cache with zero queries",
+      "database enumeration error shown with known fallback databases",
+      "narrow discovery issue layout"
+    ],
+    "errors": []
+  },
+  "scope": "Enumerate database catalogs on explicitly connected DBX connections, including uncached databases. Generate against existing exact database sessions; skip unopened sessions. Never auto-connect.",
+  "officialContracts": [
+    "https://github.com/t8y2/dbx/blob/main/apps/desktop/src/types/pluginConnection.ts",
+    "https://github.com/t8y2/dbx/blob/main/apps/desktop/src/components/plugins/PluginWorkbenchHost.vue",
+    "https://www.postgresql.org/docs/current/catalog-pg-database.html"
+  ]
+}

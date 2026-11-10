@@ -1,0 +1,114 @@
+{
+  "version": "0.4.26",
+  "frontendTests": {
+    "files": 25,
+    "passed": 273
+  },
+  "backendTests": {
+    "passed": 7,
+    "raceDetector": true
+  },
+  "svelteCheck": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "build": true,
+  "realNativeBrowser": {
+    "passed": true,
+    "realGoSidecar": true,
+    "snapshotSizes": [
+      2205568,
+      2205572
+    ],
+    "scenarios": [
+      "reproduced original 1 MiB UI quota error",
+      "migrated all old compressed caches without SQL",
+      "verified migrated bytes equal original snapshot",
+      "did not evict unrelated UI state",
+      "generated new snapshots each over 1 MiB with real Go backend",
+      "local refresh and reload from disk without SQL"
+    ],
+    "errors": []
+  },
+  "nativeFailureProtection": {
+    "passed": true,
+    "scenario": "partial metadata failure preserves real disk snapshot, timestamp and full-file hash"
+  },
+  "packagedNativeProtocol": {
+    "passed": true,
+    "packagedBinary": true,
+    "protocolVersion": 1,
+    "version": "0.4.26",
+    "snapshotBytes": 4000000,
+    "restartedProcesses": 3,
+    "sha256": "5e36a111d9fb5a733c2b46b3418f53c6a3e0b0d5a5dcd9e5e5f7a4e0e16113a2",
+    "interruptedWriteKeepsPrevious": true
+  },
+  "packages": [
+    {
+      "target": "darwin-arm64",
+      "version": "0.4.26",
+      "sha256": "89125b0c91772bca069a4b6bba3b067862493763d2c499fcc96e3377d1b39213",
+      "size": 1945411,
+      "checksumsVerified": 7,
+      "frontendAndAssetsMatch": true,
+      "manifestSemanticMatch": true,
+      "binaryArchitectureVerified": true,
+      "binaryExecutable": true,
+      "signed": false
+    },
+    {
+      "target": "darwin-x64",
+      "version": "0.4.26",
+      "sha256": "b5f82c6a640424033d03edad57136ee53c19a3bf80ad22161f4771284bf5d51c",
+      "size": 1086164,
+      "checksumsVerified": 7,
+      "frontendAndAssetsMatch": true,
+      "manifestSemanticMatch": true,
+      "binaryArchitectureVerified": true,
+      "binaryExecutable": true,
+      "signed": false
+    },
+    {
+      "target": "windows-x64",
+      "version": "0.4.26",
+      "sha256": "facc7471f2c75b8667f7c97f4bb792fba87d17fc97f2265d3ed2e238d87d9737",
+      "size": 1120387,
+      "checksumsVerified": 7,
+      "frontendAndAssetsMatch": true,
+      "manifestSemanticMatch": true,
+      "binaryArchitectureVerified": true,
+      "binaryExecutable": true,
+      "signed": false
+    },
+    {
+      "target": "linux-x64",
+      "version": "0.4.26",
+      "sha256": "cd0f9faf354ebd39963caca19413465c05a6b4aee477f3f89ac009a653355841",
+      "size": 1069140,
+      "checksumsVerified": 7,
+      "frontendAndAssetsMatch": true,
+      "manifestSemanticMatch": true,
+      "binaryArchitectureVerified": true,
+      "binaryExecutable": true,
+      "signed": false
+    },
+    {
+      "target": "linux-arm64",
+      "version": "0.4.26",
+      "sha256": "b4c9ea209237571eadc4e099944bf72ec1c0bb54c6dfe03cf5728ff2f2bfae16",
+      "size": 989372,
+      "checksumsVerified": 7,
+      "frontendAndAssetsMatch": true,
+      "manifestSemanticMatch": true,
+      "binaryArchitectureVerified": true,
+      "binaryExecutable": true,
+      "signed": false
+    }
+  ],
+  "packaging": "Official CLI validates/builds host package; native cross-build variants reuse its validated assets/manifest contract and regenerate SHA-256 checksums/metadata. Architecture and executable permission checked for every target.",
+  "officialContracts": [
+    "https://github.com/t8y2/dbx/blob/28a60d061b1b/plugins/README.md",
+    "https://github.com/t8y2/dbx/blob/28a60d061b1b/plugins/sdk/go/dbx-plugin-sdk/sdk.go"
+  ]
+}

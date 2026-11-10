@@ -1,0 +1,1702 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 2526584..4e2ae1c 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -132,6 +132,12 @@ version = "0.2.21"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
+ 
++[[package]]
++name = "ambient-authority"
++version = "0.0.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "e9d4ee0d472d1cd2e28c97dfa124b3d8d992e10eb0a035f33f5d12e3a177ba3b"
++
+ [[package]]
+ name = "android_log-sys"
+ version = "0.3.2"
+@@ -1344,6 +1350,36 @@ dependencies = [
+  "serde_core",
+ ]
+ 
++[[package]]
++name = "cap-primitives"
++version = "3.4.6"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "8e0bf07d379916947be6c4a07f43684153d710a2896c31f9e97781362895596c"
++dependencies = [
++ "ambient-authority",
++ "fs-set-times",
++ "io-extras",
++ "io-lifetimes",
++ "ipnet",
++ "maybe-owned",
++ "rustix",
++ "rustix-linux-procfs",
++ "windows-sys 0.59.0",
++ "winx",
++]
++
++[[package]]
++name = "cap-std"
++version = "3.4.6"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "a59e59fa26472d29680ece6a9f8ee8b0551a719a33df2f5240bde065ecbddfd7"
++dependencies = [
++ "cap-primitives",
++ "io-extras",
++ "io-lifetimes",
++ "rustix",
++]
++
+ [[package]]
+ name = "cargo-platform"
+ version = "0.1.9"
+@@ -2173,6 +2209,7 @@ dependencies = [
+  "chrono",
+  "csv",
+  "dbx-core",
++ "dbx-directory-access",
+  "dbx-mcp",
+  "dbx-platform",
+  "dbx-tauri-consul",
+@@ -2338,6 +2375,21 @@ dependencies = [
+  "zstd",
+ ]
+ 
++[[package]]
++name = "dbx-directory-access"
++version = "0.1.0"
++dependencies = [
++ "base64 0.22.1",
++ "cap-std",
++ "libc",
++ "serde",
++ "serde_json",
++ "sha2 0.10.9",
++ "tempfile",
++ "uuid",
++ "windows-sys 0.61.2",
++]
++
+ [[package]]
+ name = "dbx-driver-agent"
+ version = "0.1.0"
+@@ -3715,6 +3767,17 @@ dependencies = [
+  "pkg-config",
+ ]
+ 
++[[package]]
++name = "fs-set-times"
++version = "0.20.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "94e7099f6313ecacbe1256e8ff9d617b75d1bcb16a6fddef94866d225a01a14a"
++dependencies = [
++ "io-lifetimes",
++ "rustix",
++ "windows-sys 0.59.0",
++]
++
+ [[package]]
+ name = "fs2"
+ version = "0.4.3"
+@@ -5035,6 +5098,22 @@ dependencies = [
+  "rand_core 0.10.1",
+ ]
+ 
++[[package]]
++name = "io-extras"
++version = "0.18.4"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "2285ddfe3054097ef4b2fe909ef8c3bcd1ea52a8f0d274416caebeef39f04a65"
++dependencies = [
++ "io-lifetimes",
++ "windows-sys 0.59.0",
++]
++
++[[package]]
++name = "io-lifetimes"
++version = "2.0.4"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "06432fb54d3be7964ecd3649233cddf80db2832f47fec34c01f65b3d9d774983"
++
+ [[package]]
+ name = "ipconfig"
+ version = "0.3.4"
+@@ -5659,6 +5738,12 @@ version = "0.8.4"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
+ 
++[[package]]
++name = "maybe-owned"
++version = "0.3.4"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "4facc753ae494aeb6e3c22f839b158aebd4f9270f55cd3c79906c45476c47ab4"
++
+ [[package]]
+ name = "md-5"
+ version = "0.11.0"
+@@ -8296,6 +8381,16 @@ dependencies = [
+  "windows-sys 0.61.2",
+ ]
+ 
++[[package]]
++name = "rustix-linux-procfs"
++version = "0.1.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "2fc84bf7e9aa16c4f2c758f27412dc9841341e16aa682d9c7ac308fe3ee12056"
++dependencies = [
++ "once_cell",
++ "rustix",
++]
++
+ [[package]]
+ name = "rustls"
+ version = "0.21.12"
+@@ -11997,6 +12092,16 @@ dependencies = [
+  "windows-sys 0.59.0",
+ ]
+ 
++[[package]]
++name = "winx"
++version = "0.36.4"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "3f3fd376f71958b862e7afb20cfe5a22830e1963462f3a17f49d82a6c1d1f42d"
++dependencies = [
++ "bitflags 2.13.1",
++ "windows-sys 0.59.0",
++]
++
+ [[package]]
+ name = "wio"
+ version = "0.2.2"
+diff --git a/Cargo.toml b/Cargo.toml
+index a59a0ed..c130334 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -1,6 +1,6 @@
+ [workspace]
+ resolver = "2"
+-members = ["src-tauri", "crates/dbx-core", "crates/dbx-driver-agent", "crates/dbx-driver-support", "crates/dbx-driver-elasticsearch", "crates/dbx-driver-mongodb", "crates/dbx-driver-mysql", "crates/dbx-driver-postgres", "crates/dbx-driver-redis", "crates/dbx-driver-sqlserver", "crates/dbx-drivers", "crates/dbx-sql", "crates/dbx-sql-core", "crates/dbx-sql-data", "crates/dbx-sql-dialect", "crates/dbx-sql-schema", "crates/dbx-plugin-runtime", "crates/dbx-formats", "crates/dbx-types", "crates/dbx-platform", "crates/dbx-ai-provider", "crates/dbx-web", "crates/dbx-mcp", "crates/dbx-cli", "crates/dbx-sqlite-worker", "crates/dbx-tauri-consul", "crates/dbx-tauri-schema"]
++members = ["crates/dbx-directory-access", "src-tauri", "crates/dbx-core", "crates/dbx-driver-agent", "crates/dbx-driver-support", "crates/dbx-driver-elasticsearch", "crates/dbx-driver-mongodb", "crates/dbx-driver-mysql", "crates/dbx-driver-postgres", "crates/dbx-driver-redis", "crates/dbx-driver-sqlserver", "crates/dbx-drivers", "crates/dbx-sql", "crates/dbx-sql-core", "crates/dbx-sql-data", "crates/dbx-sql-dialect", "crates/dbx-sql-schema", "crates/dbx-plugin-runtime", "crates/dbx-formats", "crates/dbx-types", "crates/dbx-platform", "crates/dbx-ai-provider", "crates/dbx-web", "crates/dbx-mcp", "crates/dbx-cli", "crates/dbx-sqlite-worker", "crates/dbx-tauri-consul", "crates/dbx-tauri-schema"]
+ exclude = ["vendor/tauri-plugin-updater", "vendor/ctor", "vendor/dirs-sys", "vendor/pageant", "vendor/rumqttc", "vendor/tiberius", "vendor/webview2-com-sys", "vendor/wry"]
+ 
+ [patch.crates-io]
+diff --git a/apps/desktop/src/components/plugins/PluginContributionsPanel.vue b/apps/desktop/src/components/plugins/PluginContributionsPanel.vue
+index ccef7f8..f5f7662 100644
+--- a/apps/desktop/src/components/plugins/PluginContributionsPanel.vue
++++ b/apps/desktop/src/components/plugins/PluginContributionsPanel.vue
+@@ -44,6 +44,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
+ import { useToast } from "@/composables/useToast";
+ import PluginShortcutSettings from "./PluginShortcutSettings.vue";
+ import PluginIcon from "@/components/plugins/PluginIcon.vue";
++import PluginDirectoryAccessSection from "@/components/plugins/PluginDirectoryAccessSection.vue";
+ import PluginAiAccessSection from "@/components/plugins/PluginAiAccessSection.vue";
+ import { installedPluginProvidesMcpTools, marketplacePluginProvidesMcpTools } from "@/lib/plugins/pluginMcpMark";
+ import PluginGraphicsEngineSection from "@/components/plugins/PluginGraphicsEngineSection.vue";
+@@ -1940,6 +1941,7 @@ onBeforeUnmount(() => {
+                 </div>
+ 
+                 <PluginAiAccessSection :key="selectedDefinition.plugin.manifest.id" :plugin="selectedDefinition.plugin" />
++                <PluginDirectoryAccessSection :key="`directories:${selectedDefinition.plugin.manifest.id}`" :plugin="selectedDefinition.plugin" />
+ 
+                 <PluginGraphicsEngineSection :key="`graphics-${selectedDefinition.plugin.manifest.id}`" :plugin="selectedDefinition.plugin" />
+ 
+diff --git a/apps/desktop/src/components/plugins/PluginDirectoryAccessSection.vue b/apps/desktop/src/components/plugins/PluginDirectoryAccessSection.vue
+new file mode 100644
+index 0000000..ac9d5a9
+--- /dev/null
++++ b/apps/desktop/src/components/plugins/PluginDirectoryAccessSection.vue
+@@ -0,0 +1,66 @@
++<script setup lang="ts">
++import { computed, ref, watch } from "vue";
++import { useI18n } from "vue-i18n";
++import { invoke } from "@tauri-apps/api/core";
++import { isTauriRuntime } from "@/lib/backend/tauriRuntime";
++import { Button } from "@/components/ui/button";
++import type { InstalledPlugin } from "@/types/database";
++import type { PluginDirectoryGrant } from "@/types/pluginDirectory";
++const props = defineProps<{ plugin: InstalledPlugin }>();
++const { locale } = useI18n();
++const zh = computed(() => locale.value.startsWith("zh"));
++const grants = ref<PluginDirectoryGrant[]>([]);
++const error = ref("");
++const busy = ref(false);
++const declared = computed(() => (props.plugin.manifest.permissions || []).some((p) => p.startsWith("host.directory:")));
++async function load() {
++  if (!isTauriRuntime()) return;
++  const id = props.plugin.manifest.id;
++  try {
++    const result = await invoke<PluginDirectoryGrant[]>("plugin_directory_manage", { pluginId: id });
++    if (id === props.plugin.manifest.id) grants.value = result;
++  } catch (e) {
++    if (id === props.plugin.manifest.id) error.value = String(e);
++  }
++}
++async function revoke(id: string) {
++  busy.value = true;
++  error.value = "";
++  const pluginId = props.plugin.manifest.id;
++  try {
++    const result = await invoke<PluginDirectoryGrant[]>("plugin_directory_manage", { pluginId, revokeId: id });
++    if (pluginId === props.plugin.manifest.id) grants.value = result;
++  } catch (e) {
++    error.value = String(e);
++  } finally {
++    busy.value = false;
++  }
++}
++watch(
++  () => props.plugin.manifest.id,
++  () => {
++    grants.value = [];
++    error.value = "";
++    void load();
++  },
++  { immediate: true },
++);
++</script>
++<template>
++  <section v-if="isTauriRuntime() && (declared || grants.length)" class="space-y-2 rounded-lg border p-3">
++    <div class="flex items-center justify-between gap-3">
++      <h3 class="text-sm font-semibold">{{ zh ? "目录访问授权" : "Directory access" }}</h3>
++      <Button variant="ghost" size="sm" :disabled="busy" @click="load">{{ zh ? "刷新" : "Refresh" }}</Button>
++    </div>
++    <p class="text-xs text-muted-foreground">{{ zh ? "仅可访问用户通过系统选择器授权的目录。授权跨重启保留，可随时在此撤销；撤销不会删除文件。" : "Only directories selected in the native picker are accessible. Grants survive restarts. Revoking access keeps your files." }}</p>
++    <p v-if="error" class="break-all text-xs text-destructive" role="alert">{{ error }}</p>
++    <p v-if="!grants.length" class="text-xs text-muted-foreground">{{ zh ? "尚无已授权目录" : "No authorized directories" }}</p>
++    <div v-for="grant in grants" :key="grant.id" class="flex items-center gap-3 border-t pt-2">
++      <div class="min-w-0 flex-1">
++        <p class="break-all font-mono text-xs">{{ grant.displayPath }}</p>
++        <p class="text-xs text-muted-foreground">{{ grant.mode === "readwrite" ? (zh ? "读取与写入" : "Read and write") : zh ? "只读" : "Read only" }}</p>
++      </div>
++      <Button variant="outline" size="sm" :disabled="busy" @click="revoke(grant.id)">{{ zh ? "撤销" : "Revoke" }}</Button>
++    </div>
++  </section>
++</template>
+diff --git a/apps/desktop/src/components/plugins/PluginWorkbenchHost.vue b/apps/desktop/src/components/plugins/PluginWorkbenchHost.vue
+index 4edb19c..2e60fd1 100644
+--- a/apps/desktop/src/components/plugins/PluginWorkbenchHost.vue
++++ b/apps/desktop/src/components/plugins/PluginWorkbenchHost.vue
+@@ -1,4 +1,6 @@
+ <script setup lang="ts">
++import type { PluginDirectoryOperation } from "@/types/pluginDirectory";
++import { requestPluginDirectory, callPluginDirectory } from "@/lib/plugins/pluginDirectory";
+ import { mysqlDataCharsetEnabled } from "@/lib/connection/mysqlDataCharset";
+ import PluginOpenUrlDialog from "./PluginOpenUrlDialog.vue";
+ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+@@ -185,6 +187,19 @@ const webSaveBuffers = new Map<string, { name: string; contentType: string; chun
+ // kill the SAME plugin's handles held by a sibling workbench instance, so it
+ // is reserved for Rust-side lifecycle (stop/uninstall) only.
+ const openTauriHandles = new Map<string, string>();
++const openDirectoryHandles = new Map<string, string>();
++async function callWorkbenchDirectory(pluginId: string, operation: PluginDirectoryOperation, params: Record<string, unknown>) {
++  const result = await callPluginDirectory(pluginId, operation, params);
++  if ((operation === "openRead" || operation === "beginWrite") && result && typeof result === "object" && "handleId" in result && typeof result.handleId === "string") {
++    if (disposed) {
++      await callPluginDirectory(pluginId, "close", { handleId: result.handleId }).catch(() => undefined);
++      throw new Error("Workbench closed");
++    }
++    openDirectoryHandles.set(result.handleId, pluginId);
++  }
++  if ((operation === "close" || operation === "abort" || operation === "commit") && typeof params.handleId === "string") openDirectoryHandles.delete(params.handleId);
++  return result;
++}
+ const tauriHandlePrefix = "t";
+ const webHandlePrefix = "w";
+ 
+@@ -395,6 +410,8 @@ function disposeLocalFileHandles(): void {
+       .then(({ closePluginLocalFile }) => closePluginLocalFile(pluginId, handleId))
+       .catch(() => undefined);
+   openTauriHandles.clear();
++  for (const [handleId, pluginId] of openDirectoryHandles) void callPluginDirectory(pluginId, "close", { handleId }).catch(() => undefined);
++  openDirectoryHandles.clear();
+   webPickedFiles.clear();
+   webSaveBuffers.clear();
+ }
+@@ -710,6 +727,8 @@ function createBridge() {
+       // OS drops (with folder expansion) are a desktop-host capability; the
+       // bridge advertises it to plugins through capabilities.fileTransfer.
+       receiveOsDrops: isTauriRuntime(),
++      requestDirectory: isTauriRuntime() ? requestPluginDirectory : undefined,
++      directoryCall: isTauriRuntime() ? callWorkbenchDirectory : undefined,
+       storageGet: (pluginId, key) => getPluginStorage(pluginId, key),
+       storageSet: (pluginId, key, value) => setPluginStorage(pluginId, key, value),
+       storageDelete: (pluginId, key) => deletePluginStorage(pluginId, key),
+diff --git a/apps/desktop/src/lib/plugins/pluginDirectory.spec.ts b/apps/desktop/src/lib/plugins/pluginDirectory.spec.ts
+new file mode 100644
+index 0000000..f38c71b
+--- /dev/null
++++ b/apps/desktop/src/lib/plugins/pluginDirectory.spec.ts
+@@ -0,0 +1,65 @@
++// @vitest-environment happy-dom
++import { describe, expect, it, vi } from "vitest";
++import { PluginHostBridge, pluginSdkSource } from "./pluginHostBridge";
++import type { InstalledPlugin, PluginWorkbenchContribution } from "@/types/database";
++function fixture(permissions: string[], implemented = true) {
++  const messages: any[] = [];
++  const target = { postMessage: (m: unknown) => messages.push(m) } as unknown as Window;
++  const plugin: InstalledPlugin = { manifest: { id: "own.plugin", name: "Own", version: "1.0.0", permissions, drivers: [], contributions: [] }, compatibility: { compatible: true } };
++  const contribution: PluginWorkbenchContribution = { type: "workbench", id: "own.plugin.main", label: "Test" };
++  const requestDirectory = vi.fn().mockResolvedValue({ id: "grant" });
++  const directoryCall = vi.fn().mockResolvedValue({ status: "ready" });
++  const bridge = new PluginHostBridge(plugin, contribution, {}, () => target, { invoke: vi.fn(), notify: vi.fn(), sendBinary: vi.fn(), readAsset: vi.fn(), ...(implemented ? { requestDirectory, directoryCall } : {}) });
++  const send = async (method: string, params = {}) => {
++    const count = messages.length;
++    bridge.handleWindowMessage({ source: target, data: { source: "dbx-plugin", version: 1, type: "request", id: String(count), method: `host.directory.${method}`, params } } as MessageEvent);
++    await vi.waitFor(() => expect(messages.length).toBe(count + 1));
++    return messages[messages.length - 1];
++  };
++  return { bridge, messages, send, requestDirectory, directoryCall };
++}
++describe("persistent directory bridge", () => {
++  it("advertises only an implemented host capability", async () => {
++    for (const implemented of [true, false]) {
++      const f = fixture([], implemented);
++      f.bridge.sendInit();
++      await vi.waitFor(() => expect(f.messages.length).toBeGreaterThan(0));
++      expect(f.messages[0].capabilities.directoryAccess).toBe(implemented);
++    }
++  });
++  it("requires declared read and write permissions before requesting native consent", async () => {
++    const denied = fixture([]);
++    expect((await denied.send("request", { mode: "readwrite" })).error).toContain("host.directory:read");
++    const read = fixture(["host.directory:read"]);
++    expect((await read.send("request", { mode: "readwrite" })).error).toContain("host.directory:write");
++    expect(denied.requestDirectory).not.toHaveBeenCalled();
++    expect(read.requestDirectory).not.toHaveBeenCalled();
++  });
++  it.each(["beginWrite", "write", "commit", "mkdir"])("requires write permission for %s", async (operation) => {
++    const f = fixture(["host.directory:read"]);
++    expect((await f.send(operation, { grantId: "g" })).error).toContain("host.directory:write");
++    expect(f.directoryCall).not.toHaveBeenCalled();
++  });
++  it("passes the trusted owner rather than a plugin-supplied identity", async () => {
++    const f = fixture(["host.directory:read", "host.directory:write"]);
++    await f.send("restore", { grantId: "g", pluginId: "victim" });
++    expect(f.directoryCall).toHaveBeenCalledWith("own.plugin", "restore", { grantId: "g", pluginId: "victim" });
++    await f.send("request", { mode: "readwrite", pluginId: "victim", initialPath: "/hint" });
++    expect(f.requestDirectory).toHaveBeenCalledWith("own.plugin", { mode: "readwrite", persistence: "required", initialPath: "/hint" });
++  });
++  it("preserves typed native failure codes and rejects unknown operations", async () => {
++    const f = fixture(["host.directory:read"]);
++    f.directoryCall.mockRejectedValueOnce(new Error("[REVOKED] revoked"));
++    expect((await f.send("read", { handleId: "h", offset: 0 })).error).toContain("[REVOKED]");
++    expect((await f.send("deleteEverything")).error).toContain("[UNSUPPORTED]");
++  });
++  it("does not pretend browser hosts support persistent access", async () => {
++    const f = fixture(["host.directory:read"], false);
++    expect((await f.send("restore", { grantId: "g" })).error).toContain("[UNSUPPORTED]");
++  });
++  it("exposes every operation in the sandbox SDK", () => {
++    const source = pluginSdkSource();
++    for (const operation of ["request", "listGrants", "setPreferred", "restore", "revoke", "list", "stat", "mkdir", "openRead", "read", "close", "beginWrite", "write", "commit", "abort"]) expect(source).toContain(`host.directory.${operation}`);
++    new Function(source); // Validate the injected SDK's generated JavaScript.
++  });
++});
+diff --git a/apps/desktop/src/lib/plugins/pluginDirectory.ts b/apps/desktop/src/lib/plugins/pluginDirectory.ts
+new file mode 100644
+index 0000000..6ae9c0a
+--- /dev/null
++++ b/apps/desktop/src/lib/plugins/pluginDirectory.ts
+@@ -0,0 +1,10 @@
++import type { PluginDirectoryOperation, PluginDirectoryRequest } from "@/types/pluginDirectory";
++import { invoke } from "@tauri-apps/api/core";
++
++// Only the trusted workbench host imports these. No path-based open command.
++export function requestPluginDirectory(pluginId: string, options: PluginDirectoryRequest) {
++  return invoke("plugin_directory_request", { pluginId, options });
++}
++export function callPluginDirectory(pluginId: string, operation: PluginDirectoryOperation, params: Record<string, unknown>) {
++  return invoke("plugin_directory_call", { pluginId, operation, params });
++}
+diff --git a/apps/desktop/src/lib/plugins/pluginHostBridge.ts b/apps/desktop/src/lib/plugins/pluginHostBridge.ts
+index 2e8db96..219f49d 100644
+--- a/apps/desktop/src/lib/plugins/pluginHostBridge.ts
++++ b/apps/desktop/src/lib/plugins/pluginHostBridge.ts
+@@ -1,3 +1,4 @@
++import type { PluginDirectoryOperation, PluginDirectoryRequest } from "@/types/pluginDirectory";
+ import { PLUGIN_AI_TASKS } from "./pluginAiCompletion";
+ import { permittedPluginUrl } from "./pluginOpenUrl";
+ import type { PluginAiProvider, PluginAiModel, PluginAiGenerateRequest, PluginAiStreamRequest, PluginAiStreamChunkEvent, PluginAiTask } from "./pluginAiCompletion";
+@@ -166,6 +167,9 @@ export const MAX_PLUGIN_STORAGE_VALUE_BYTES = 256 * 1024;
+ export const MAX_PLUGIN_STORAGE_KEY_CHARS = 256;
+ 
+ export interface PluginHostBridgeApi {
++  requestDirectory?(pluginId: string, options: PluginDirectoryRequest): Promise<unknown>;
++  directoryCall?(pluginId: string, operation: PluginDirectoryOperation, params: Record<string, unknown>): Promise<unknown>;
++
+   /** Must display trusted host consent for every request; never launch directly. */
+   openUrl?(url: string): Promise<{ opened: boolean }>;
+   invoke<T = unknown>(pluginId: string, method: string, params?: unknown, timeoutMs?: number): Promise<T>;
+@@ -517,6 +521,7 @@ export class PluginHostBridge {
+         planApi: !!this.api.getPlanCapabilities && !!this.api.explainPlan,
+         [PLUGIN_SCHEMA_METADATA_CAPABILITY]: !!this.api.getTableMetadata,
+         [PLUGIN_DATA_CAPABILITY]: !!this.api.queryData && !!this.api.hasDataGrant && !!this.api.confirmDataAccess && !!this.api.grantDataAccess,
++        directoryAccess: !!this.api.requestDirectory && !!this.api.directoryCall,
+         storage: !!this.api.storageGet && !!this.api.storageSet && !!this.api.storageDelete,
+         ai: !!this.api.openAiConversation,
+         aiModelDiscovery: !!this.api.listAiProviders && !!this.api.discoverAiModels,
+@@ -654,6 +659,21 @@ export class PluginHostBridge {
+   }
+ 
+   private async dispatch(method: string, params: unknown, binary?: ArrayBuffer): Promise<unknown> {
++    if (method.startsWith("host.directory.")) {
++      const operation = method.slice("host.directory.".length);
++      const writes = new Set(["beginWrite", "write", "commit", "mkdir"]);
++      this.requirePermission(writes.has(operation) ? "host.directory:write" : "host.directory:read");
++      if (!this.api.requestDirectory || !this.api.directoryCall) throw new Error("[UNSUPPORTED] Persistent directory access requires the desktop host");
++      const input = requireRecord(params, "directory params");
++      if (operation === "request") {
++        const mode = input.mode === "readwrite" ? "readwrite" : "read";
++        if (mode === "readwrite") this.requirePermission("host.directory:write");
++        return this.api.requestDirectory(this.plugin.manifest.id, { mode, persistence: input.persistence === "preferred" ? "preferred" : "required", initialPath: typeof input.initialPath === "string" ? input.initialPath : undefined });
++      }
++      const allowed = new Set(["listGrants", "setPreferred", "restore", "revoke", "list", "stat", "mkdir", "openRead", "read", "close", "beginWrite", "write", "commit", "abort"]);
++      if (!allowed.has(operation)) throw new Error("[UNSUPPORTED] Unknown directory operation");
++      return this.api.directoryCall(this.plugin.manifest.id, operation as PluginDirectoryOperation, input);
++    }
+     if (method === "host.openUrl") {
+       const input = requireRecord(params, "open URL params");
+       const url = permittedPluginUrl(input.url, this.plugin.manifest.permissions);
+@@ -1559,6 +1579,23 @@ export function pluginSdkSource(initialTheme?: PluginBridgeTheme): string {
+         set: (key, value) => request('host.storageSet', { key, value: value === undefined ? null : value }),
+         delete: (key) => request('host.storageDelete', { key }),
+       }),
++      directory: Object.freeze({
++        request: (options) => request('host.directory.request', options || {}),
++        listGrants: () => request('host.directory.listGrants', {}),
++        setPreferred: (grantId) => request('host.directory.setPreferred', { grantId }),
++        restore: (grantId) => request('host.directory.restore', { grantId }),
++        revoke: (grantId) => request('host.directory.revoke', { grantId }),
++        list: (grantId, path = '', cursor) => request('host.directory.list', { grantId, path, cursor }),
++        stat: (grantId, path) => request('host.directory.stat', { grantId, path }),
++        mkdir: (grantId, path) => request('host.directory.mkdir', { grantId, path }),
++        openRead: (grantId, path) => request('host.directory.openRead', { grantId, path }),
++        read: (handleId, offset, length) => request('host.directory.read', { handleId, offset, length }),
++        close: (handleId) => request('host.directory.close', { handleId }),
++        beginWrite: (grantId, path, options) => request('host.directory.beginWrite', { grantId, path, ...options }),
++        write: (handleId, offset, dataBase64) => request('host.directory.write', { handleId, offset, dataBase64 }),
++        commit: (handleId, sha256) => request('host.directory.commit', { handleId, sha256 }),
++        abort: (handleId) => request('host.directory.abort', { handleId }),
++      }),
+       fileTransfer: Object.freeze({
+         pick: (options) => request('host.pickFiles', options || {}),
+         read: (handleId, offset, length) => request('host.readFileChunk', { handleId, offset, length }),
+diff --git a/apps/desktop/src/lib/plugins/pluginPermissions.ts b/apps/desktop/src/lib/plugins/pluginPermissions.ts
+index 7ca980d..4c88444 100644
+--- a/apps/desktop/src/lib/plugins/pluginPermissions.ts
++++ b/apps/desktop/src/lib/plugins/pluginPermissions.ts
+@@ -6,7 +6,7 @@
+  * code without an interaction per call (or open a direct environment channel),
+  * so they are highlighted instead of blended into the outline badge row.
+  */
+-export const SENSITIVE_PLUGIN_PERMISSIONS: readonly string[] = ["host.clipboard:read"];
++export const SENSITIVE_PLUGIN_PERMISSIONS: readonly string[] = ["host.clipboard:read", "host.directory:read", "host.directory:write"];
+ 
+ export function isSensitivePluginPermission(permission: string): boolean {
+   return SENSITIVE_PLUGIN_PERMISSIONS.includes(permission);
+diff --git a/apps/desktop/src/types/pluginDirectory.ts b/apps/desktop/src/types/pluginDirectory.ts
+new file mode 100644
+index 0000000..13738fd
+--- /dev/null
++++ b/apps/desktop/src/types/pluginDirectory.ts
+@@ -0,0 +1,19 @@
++/** Host API 1.5: native, persistent directory capabilities. Paths are relative. */
++export interface PluginDirectoryGrant {
++  id: string;
++  displayName: string;
++  displayPath: string;
++  mode: "read" | "readwrite";
++  status: "unchecked" | "ready" | "unavailable" | "identityChanged" | "revoked";
++  persistent: boolean;
++  preferred: boolean;
++  createdAt: number;
++  chunkBytes: number;
++  maxFileBytes: number;
++}
++export type PluginDirectoryOperation = "listGrants" | "setPreferred" | "restore" | "revoke" | "list" | "stat" | "mkdir" | "openRead" | "read" | "close" | "beginWrite" | "write" | "commit" | "abort";
++export interface PluginDirectoryRequest {
++  mode: "read" | "readwrite";
++  persistence?: "required" | "preferred";
++  initialPath?: string;
++}
+diff --git a/crates/dbx-directory-access/Cargo.toml b/crates/dbx-directory-access/Cargo.toml
+new file mode 100644
+index 0000000..27f10d2
+--- /dev/null
++++ b/crates/dbx-directory-access/Cargo.toml
+@@ -0,0 +1,21 @@
++[package]
++name = "dbx-directory-access"
++version = "0.1.0"
++edition = "2021"
++license = "Apache-2.0"
++publish = false
++
++[dependencies]
++cap-std = "3.4.5"
++serde = { version = "1", features = ["derive"] }
++serde_json = "1"
++sha2 = "0.10"
++uuid = { version = "1", features = ["v4"] }
++base64 = "0.22"
++tempfile = "3"
++
++[target.'cfg(windows)'.dependencies]
++windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
++
++[target.'cfg(unix)'.dependencies]
++libc = "0.2"
+diff --git a/crates/dbx-directory-access/examples/protocol_probe.rs b/crates/dbx-directory-access/examples/protocol_probe.rs
+new file mode 100644
+index 0000000..537e6bb
+--- /dev/null
++++ b/crates/dbx-directory-access/examples/protocol_probe.rs
+@@ -0,0 +1,25 @@
++//! Test-only JSON-lines driver for exercising the real directory core without
++//! opening the GUI. The picker result is supplied by the test process argv.
++use dbx_directory_access::DirectoryService;
++use serde_json::{json, Value};
++use std::io::{self, BufRead};
++fn main() {
++    let args = std::env::args().collect::<Vec<_>>();
++    let mut service = DirectoryService::open(args[1].clone().into()).unwrap();
++    for line in io::stdin().lock().lines() {
++        let request: Value = serde_json::from_str(&line.unwrap()).unwrap();
++        let params = request.get("params").cloned().unwrap_or_else(|| json!({}));
++        let result = if request["operation"] == "request" {
++            service.grant("repro", std::path::Path::new(&args[2]), "readwrite")
++        } else {
++            service.call("repro", request["operation"].as_str().unwrap(), &params)
++        };
++        println!(
++            "{}",
++            match result {
++                Ok(value) => json!({"id":request["id"],"result":value}),
++                Err(error) => json!({"id":request["id"],"error":error}),
++            }
++        );
++    }
++}
+diff --git a/crates/dbx-directory-access/src/lib.rs b/crates/dbx-directory-access/src/lib.rs
+new file mode 100644
+index 0000000..f60d9a2
+--- /dev/null
++++ b/crates/dbx-directory-access/src/lib.rs
+@@ -0,0 +1,698 @@
++//! Host-owned persistent directory capabilities. No plugin business data lives here.
++//! Call under a single host mutex, including revoke/commit. Only the native picker
++//! may supply `grant`'s root. Plugin calls take opaque grants and relative paths.
++use base64::{engine::general_purpose::STANDARD, Engine};
++use cap_std::{
++    ambient_authority,
++    fs::{Dir, OpenOptions},
++};
++use serde::{Deserialize, Serialize};
++use serde_json::{json, Value};
++use sha2::{Digest, Sha256};
++use std::{
++    collections::HashMap,
++    fs::File,
++    io::{Read, Seek, SeekFrom, Write},
++    path::{Path, PathBuf},
++    time::{Duration, Instant},
++};
++use uuid::Uuid;
++
++pub const CHUNK: usize = 512 * 1024;
++pub const MAX_FILE: u64 = 512 * 1024 * 1024;
++const TTL: Duration = Duration::from_secs(600);
++type Result<T> = std::result::Result<T, String>;
++fn fail(code: &str, message: impl std::fmt::Display) -> String {
++    format!("[{code}] {message}")
++}
++fn io(error: std::io::Error) -> String {
++    let code = match error.kind() {
++        std::io::ErrorKind::NotFound => "NOT_FOUND",
++        std::io::ErrorKind::PermissionDenied => "ACCESS_DENIED",
++        _ if error.raw_os_error() == Some(28) || (cfg!(windows) && error.raw_os_error() == Some(112)) => "DISK_FULL",
++        _ => "IO_ERROR",
++    };
++    fail(code, error)
++}
++#[derive(Clone, Debug, Serialize, Deserialize)]
++#[serde(rename_all = "camelCase")]
++struct Grant {
++    id: String,
++    owner: String,
++    identity: String,
++    root: PathBuf,
++    mode: String,
++    created_at: u64,
++    revoked: bool,
++    #[serde(default)]
++    preferred: bool,
++}
++struct Stream {
++    owner: String,
++    grant: String,
++    touched: Instant,
++    file: File,
++    size: u64,
++    write: Option<Staged>,
++}
++struct Staged {
++    parent: Dir,
++    temporary: String,
++    target: String,
++    expected: Option<String>,
++    parent_identity: String,
++    parent_path: String,
++}
++impl Drop for Stream {
++    fn drop(&mut self) {
++        if let Some(w) = &self.write {
++            let _ = w.parent.remove_file(&w.temporary);
++        }
++    }
++}
++pub struct DirectoryService {
++    store: PathBuf,
++    grants: Vec<Grant>,
++    streams: HashMap<String, Stream>,
++}
++impl DirectoryService {
++    pub fn open(store: PathBuf) -> Result<Self> {
++        let grants = match std::fs::read(&store) {
++            Ok(bytes) => serde_json::from_slice::<Vec<Grant>>(&bytes).map_err(|e| fail("GRANT_STORE_INVALID", e))?,
++            Err(e) if e.kind() == std::io::ErrorKind::NotFound => vec![],
++            Err(e) => return Err(io(e)),
++        };
++        Ok(Self { store, grants, streams: HashMap::new() })
++    }
++    /// Trusted host administration (never exported through the plugin bridge).
++    pub fn inspect_grants(&self) -> Vec<(String, Value)> {
++        self.grants.iter().filter(|g| !g.revoked).map(|g| (g.owner.clone(), Self::info(g, "unchecked"))).collect()
++    }
++    fn persist(&self) -> Result<()> {
++        let parent = self.store.parent().ok_or_else(|| fail("IO_ERROR", "invalid grant store"))?;
++        std::fs::create_dir_all(parent).map_err(io)?;
++        let mut tmp = tempfile::NamedTempFile::new_in(parent).map_err(io)?;
++        tmp.write_all(&serde_json::to_vec(&self.grants).map_err(|e| fail("IO_ERROR", e))?).map_err(io)?;
++        tmp.as_file().sync_all().map_err(io)?;
++        tmp.persist(&self.store).map_err(|e| io(e.error))?;
++        Ok(())
++    }
++    /// `owner` is host-derived plugin id + install provenance, never plugin input.
++    pub fn grant(&mut self, owner: &str, root: &Path, mode: &str) -> Result<Value> {
++        if !matches!(mode, "read" | "readwrite") {
++            return Err(fail("INVALID_ARGUMENT", "invalid access mode"));
++        }
++        let root = std::fs::canonicalize(root).map_err(io)?;
++        if self.store.starts_with(&root) {
++            return Err(fail("ACCESS_DENIED", "choose a directory outside the host authorization store"));
++        }
++        if self.grants.iter().filter(|g| g.owner == owner && !g.revoked).count() >= 64 {
++            return Err(fail("BUSY", "revoke an unused directory before granting another"));
++        }
++        let dir = Dir::open_ambient_dir(&root, ambient_authority()).map_err(io)?;
++        let identity = identity(&dir)?;
++        // Re-selecting an existing directory is explicit reauthorization, but
++        // creates a fresh grant so in-flight handles cannot inherit new consent.
++        let grant = Grant {
++            id: Uuid::new_v4().to_string(),
++            owner: owner.into(),
++            identity,
++            root,
++            mode: mode.into(),
++            created_at: std::time::SystemTime::now()
++                .duration_since(std::time::UNIX_EPOCH)
++                .unwrap_or_default()
++                .as_secs(),
++            revoked: false,
++            preferred: false,
++        };
++        self.grants.push(grant.clone());
++        if let Err(e) = self.persist() {
++            self.grants.pop();
++            return Err(e);
++        }
++        Ok(Self::info(&grant, "ready"))
++    }
++    fn info(g: &Grant, status: &str) -> Value {
++        json!({"id":g.id,"displayName":g.root.file_name().unwrap_or_default().to_string_lossy(),
++            "displayPath":g.root.to_string_lossy(),"mode":g.mode,"status":status,
++            "persistent":true,"preferred":g.preferred,"createdAt":g.created_at,"chunkBytes":CHUNK,"maxFileBytes":MAX_FILE})
++    }
++    fn owned(&self, owner: &str, id: &str) -> Result<Grant> {
++        self.grants
++            .iter()
++            .find(|g| g.id == id && g.owner == owner)
++            .cloned()
++            .ok_or_else(|| fail("NEEDS_AUTHORIZATION", "unknown directory grant"))
++    }
++    fn root(&self, owner: &str, id: &str, write: bool) -> Result<Dir> {
++        let grant = self.owned(owner, id)?;
++        if grant.revoked {
++            return Err(fail("REVOKED", "directory grant revoked"));
++        }
++        if write && grant.mode != "readwrite" {
++            return Err(fail("READ_ONLY", "directory grant is read-only"));
++        }
++        let dir = Dir::open_ambient_dir(&grant.root, ambient_authority()).map_err(|e| fail("UNAVAILABLE", e))?;
++        if identity(&dir)? != grant.identity {
++            return Err(fail("IDENTITY_CHANGED", "selected directory was replaced; select it again"));
++        }
++        Ok(dir)
++    }
++    pub fn call(&mut self, owner: &str, operation: &str, p: &Value) -> Result<Value> {
++        self.streams.retain(|_, s| s.touched.elapsed() < TTL);
++        if operation == "listGrants" {
++            return Ok(Value::Array(
++                self.grants
++                    .iter()
++                    .filter(|g| g.owner == owner)
++                    .map(|g| Self::info(g, if g.revoked { "revoked" } else { "unchecked" }))
++                    .collect(),
++            ));
++        }
++        if matches!(operation, "read" | "write" | "close" | "abort" | "commit") {
++            return self.stream(owner, operation, p);
++        }
++        let id = text(p, "grantId")?;
++        let grant = self.owned(owner, id)?;
++        if operation == "restore" {
++            let status = match self.root(owner, id, false) {
++                Ok(_) => "ready",
++                Err(e) if e.starts_with("[REVOKED]") => "revoked",
++                Err(e) if e.starts_with("[IDENTITY_CHANGED]") => "identityChanged",
++                Err(_) => "unavailable",
++            };
++            return Ok(Self::info(&grant, status));
++        }
++        if operation == "setPreferred" {
++            self.root(owner, id, false)?;
++            let previous = self.grants.iter().map(|g| g.preferred).collect::<Vec<_>>();
++            for g in &mut self.grants {
++                if g.owner == owner {
++                    g.preferred = g.id == id;
++                }
++            }
++            if let Err(error) = self.persist() {
++                for (g, preferred) in self.grants.iter_mut().zip(previous) {
++                    g.preferred = preferred;
++                }
++                return Err(error);
++            }
++            return Ok(Value::Null);
++        }
++        if operation == "revoke" {
++            let index = self.grants.iter().position(|g| g.id == id && g.owner == owner).unwrap();
++            let old = self.grants[index].revoked;
++            self.grants[index].revoked = true;
++            if let Err(e) = self.persist() {
++                self.grants[index].revoked = old;
++                return Err(e);
++            }
++            self.streams.retain(|_, s| s.grant != id);
++            return Ok(Value::Null);
++        }
++        let root = self.root(owner, id, matches!(operation, "beginWrite" | "mkdir"))?;
++        let path = relative(p.get("path").and_then(Value::as_str).unwrap_or(""), matches!(operation, "list"))?;
++        match operation {
++            "list" => {
++                let cursor = p.get("cursor").and_then(Value::as_str).unwrap_or("");
++                let dir = if path.is_empty() { root } else { root.open_dir(&path).map_err(io)? };
++                // Bounded page memory: keep only the first 501 names after cursor.
++                let mut names = std::collections::BTreeMap::new();
++                for entry in dir.entries().map_err(io)? {
++                    let entry = entry.map_err(io)?;
++                    let Some(name) = entry.file_name().to_str().map(str::to_owned) else { continue };
++                    if name.as_str() <= cursor || name.starts_with(".dbx-write-") {
++                        continue;
++                    }
++                    let kind = entry.file_type().map_err(io)?;
++                    if kind.is_symlink() {
++                        continue;
++                    }
++                    names
++                        .insert(name.clone(), json!({"name":name,"kind":if kind.is_dir() {"directory"} else {"file"}}));
++                    if names.len() > 501 {
++                        names.pop_last();
++                    }
++                }
++                let more = names.len() > 500;
++                if more {
++                    names.pop_last();
++                }
++                let next = if more { names.last_key_value().map(|(k, _)| k.clone()) } else { None };
++                Ok(json!({"entries":names.into_values().collect::<Vec<_>>(),"cursor":next}))
++            }
++            "stat" => Ok(json!({"etag":etag(&root, &path)?})),
++            "mkdir" => {
++                root.create_dir(&path).map_err(io)?;
++                Ok(Value::Null)
++            }
++            "openRead" => {
++                self.room(owner)?;
++                let mut file = open_regular(&root, &path)?;
++                if !file.metadata().map_err(io)?.is_file() {
++                    return Err(fail("INVALID_ARGUMENT", "not a regular file"));
++                }
++                let size = file.metadata().map_err(io)?.len();
++                if size > MAX_FILE {
++                    return Err(fail("TOO_LARGE", "file exceeds size limit"));
++                }
++                let etag = hash_file(&mut file)?;
++                file.seek(SeekFrom::Start(0)).map_err(io)?;
++                let handle = Uuid::new_v4().to_string();
++                self.streams.insert(
++                    handle.clone(),
++                    Stream { owner: owner.into(), grant: id.into(), touched: Instant::now(), file, size, write: None },
++                );
++                Ok(json!({"handleId":handle,"size":size,"etag":etag,"chunkBytes":CHUNK}))
++            }
++            "beginWrite" => {
++                self.room(owner)?;
++                let expected = match p.get("expectedEtag") {
++                    Some(Value::Null) => None,
++                    Some(Value::String(v)) => Some(v.clone()),
++                    _ => return Err(fail("INVALID_ARGUMENT", "expectedEtag is required; null means create only")),
++                };
++                if etag(&root, &path)? != expected {
++                    return Err(fail("CONFLICT", "file changed before write"));
++                }
++                let (parent_path, target) = path.rsplit_once('/').unwrap_or(("", path.as_str()));
++                let parent = if parent_path.is_empty() {
++                    root.try_clone().map_err(io)?
++                } else {
++                    root.open_dir(parent_path).map_err(io)?
++                };
++                let parent_identity = identity(&parent)?;
++                let handle = Uuid::new_v4().to_string();
++                let temporary = format!(".dbx-write-{handle}");
++                let mut options = OpenOptions::new();
++                options.write(true).create_new(true);
++                #[cfg(unix)]
++                {
++                    use cap_std::fs::OpenOptionsExt;
++                    options.mode(0o600);
++                }
++                let file = parent.open_with(&temporary, &options).map_err(io)?.into_std();
++                self.streams.insert(
++                    handle.clone(),
++                    Stream {
++                        owner: owner.into(),
++                        grant: id.into(),
++                        touched: Instant::now(),
++                        file,
++                        size: 0,
++                        write: Some(Staged {
++                            parent,
++                            temporary,
++                            target: target.into(),
++                            expected,
++                            parent_identity,
++                            parent_path: parent_path.into(),
++                        }),
++                    },
++                );
++                Ok(json!({"handleId":handle,"chunkBytes":CHUNK}))
++            }
++            _ => Err(fail("UNSUPPORTED", "unknown directory operation")),
++        }
++    }
++    fn room(&self, owner: &str) -> Result<()> {
++        if self.streams.len() >= 128 || self.streams.values().filter(|s| s.owner == owner).count() >= 16 {
++            return Err(fail("BUSY", "too many open directory handles"));
++        }
++        Ok(())
++    }
++    fn stream(&mut self, owner: &str, operation: &str, p: &Value) -> Result<Value> {
++        let id = text(p, "handleId")?;
++        let s = self
++            .streams
++            .get(id)
++            .filter(|s| s.owner == owner)
++            .ok_or_else(|| fail("INVALID_HANDLE", "unknown directory stream"))?;
++        if matches!(operation, "abort" | "close") {
++            self.streams.remove(id);
++            return Ok(Value::Null);
++        }
++        // Recheck the current grant/identity on every chunk and again at commit.
++        let root = self.root(owner, &s.grant, operation != "read")?;
++        if operation == "commit" {
++            let mut s = self.streams.remove(id).unwrap(); // Drop aborts on every failure.
++            let w = s.write.as_ref().ok_or_else(|| fail("INVALID_HANDLE", "not a write handle"))?;
++            let mut file = open_regular(&w.parent, &w.temporary)?;
++            if hash_file(&mut file)? != text(p, "sha256")? {
++                return Err(fail("CHECKSUM_MISMATCH", "incomplete or corrupt write"));
++            }
++            let parent = if w.parent_path.is_empty() { root } else { root.open_dir(&w.parent_path).map_err(io)? };
++            if identity(&parent)? != w.parent_identity {
++                return Err(fail("IDENTITY_CHANGED", "write parent moved"));
++            }
++            if etag(&parent, &w.target)? != w.expected {
++                return Err(fail("CONFLICT", "file changed during write"));
++            }
++            s.file.sync_all().map_err(io)?;
++            drop(file);
++            // cap-std uses handle-relative replacement, never truncate-before-write.
++            w.parent.rename(&w.temporary, &parent, &w.target).map_err(io)?;
++            let digest = text(p, "sha256")?.to_owned();
++            s.write = None;
++            return Ok(json!({"etag":digest,"committed":true}));
++        }
++        let s = self.streams.get_mut(id).unwrap();
++        s.touched = Instant::now();
++        let offset =
++            p.get("offset").and_then(Value::as_u64).ok_or_else(|| fail("INVALID_ARGUMENT", "offset required"))?;
++        if operation == "read" {
++            if s.write.is_some() || offset > s.size {
++                return Err(fail("INVALID_ARGUMENT", "invalid read"));
++            }
++            let length = p.get("length").and_then(Value::as_u64).unwrap_or(CHUNK as u64).min(CHUNK as u64);
++            s.file.seek(SeekFrom::Start(offset)).map_err(io)?;
++            let mut data = vec![0; length.min(s.size - offset) as usize];
++            s.file.read_exact(&mut data).map_err(io)?;
++            return Ok(
++                json!({"dataBase64":STANDARD.encode(&data),"length":data.len(),"eof":offset + data.len() as u64 == s.size}),
++            );
++        }
++        if s.write.is_none() || offset != s.size {
++            return Err(fail("INVALID_ARGUMENT", "nonsequential write"));
++        }
++        let encoded = text(p, "dataBase64")?;
++        if encoded.len() > CHUNK * 4 / 3 + 4 {
++            return Err(fail("TOO_LARGE", "chunk exceeds limit"));
++        }
++        let data = STANDARD.decode(encoded).map_err(|e| fail("INVALID_ARGUMENT", e))?;
++        if data.len() > CHUNK || s.size + data.len() as u64 > MAX_FILE {
++            return Err(fail("TOO_LARGE", "write exceeds limit"));
++        }
++        s.file.write_all(&data).map_err(io)?;
++        s.size += data.len() as u64;
++        Ok(json!({"written":data.len()}))
++    }
++}
++fn text<'a>(v: &'a Value, key: &str) -> Result<&'a str> {
++    v.get(key)
++        .and_then(Value::as_str)
++        .filter(|s| !s.is_empty())
++        .ok_or_else(|| fail("INVALID_ARGUMENT", format!("{key} required")))
++}
++fn relative(path: &str, allow_root: bool) -> Result<String> {
++    if path.is_empty() && allow_root {
++        return Ok(String::new());
++    }
++    if path.len() > 4096
++        || path.is_empty()
++        || path.contains(['\\', ':', '\0'])
++        || path.chars().any(char::is_control)
++        || path.split('/').any(|v| {
++            v.is_empty() || matches!(v, "." | "..") || v.ends_with([' ', '.']) || {
++                let stem = v.split('.').next().unwrap_or("").to_ascii_uppercase();
++                matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL")
++                    || (stem.len() == 4
++                        && (stem.starts_with("COM") || stem.starts_with("LPT"))
++                        && matches!(stem.as_bytes()[3], b'1'..=b'9'))
++            }
++        })
++    {
++        return Err(fail("INVALID_PATH", "use a confined relative path"));
++    }
++    Ok(path.into())
++}
++fn hash_file(file: &mut File) -> Result<String> {
++    let mut hash = Sha256::new();
++    let mut buffer = vec![0; CHUNK];
++    let mut size = 0u64;
++    loop {
++        let n = file.read(&mut buffer).map_err(io)?;
++        if n == 0 {
++            break;
++        }
++        size += n as u64;
++        if size > MAX_FILE {
++            return Err(fail("TOO_LARGE", "file exceeds limit"));
++        }
++        hash.update(&buffer[..n]);
++    }
++    Ok(format!("{:x}", hash.finalize()))
++}
++fn open_regular(dir: &Dir, path: &str) -> Result<File> {
++    let mut options = OpenOptions::new();
++    options.read(true);
++    #[cfg(unix)]
++    {
++        use cap_std::fs::OpenOptionsExt;
++        options.custom_flags(libc::O_NONBLOCK);
++    }
++    let file = dir.open_with(path, &options).map_err(io)?.into_std();
++    if !file.metadata().map_err(io)?.is_file() {
++        return Err(fail("INVALID_ARGUMENT", "not a regular file"));
++    }
++    Ok(file)
++}
++fn etag(dir: &Dir, path: &str) -> Result<Option<String>> {
++    match open_regular(dir, path) {
++        Ok(mut file) => Ok(Some(hash_file(&mut file)?)),
++        Err(e) if e.starts_with("[NOT_FOUND]") => Ok(None),
++        Err(e) => Err(e),
++    }
++}
++#[cfg(unix)]
++fn identity(dir: &Dir) -> Result<String> {
++    use std::os::unix::fs::MetadataExt;
++    let m = dir.try_clone().map_err(io)?.into_std_file().metadata().map_err(io)?;
++    Ok(format!("{}:{}", m.dev(), m.ino()))
++}
++#[cfg(windows)]
++fn identity(dir: &Dir) -> Result<String> {
++    use std::{mem, os::windows::io::AsRawHandle};
++    use windows_sys::Win32::Storage::FileSystem::{GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION};
++    let file = dir.try_clone().map_err(io)?.into_std_file();
++    let mut info: BY_HANDLE_FILE_INFORMATION = unsafe { mem::zeroed() };
++    if unsafe { GetFileInformationByHandle(file.as_raw_handle(), &mut info) } == 0 {
++        return Err(io(std::io::Error::last_os_error()));
++    }
++    Ok(format!("{}:{}:{}", info.dwVolumeSerialNumber, info.nFileIndexHigh, info.nFileIndexLow))
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    struct Fixture {
++        _temp: tempfile::TempDir,
++        root: PathBuf,
++        store: PathBuf,
++        service: DirectoryService,
++        id: String,
++    }
++    fn fixture(mode: &str) -> Fixture {
++        let temp = tempfile::tempdir().unwrap();
++        let root = temp.path().join("documents");
++        std::fs::create_dir(&root).unwrap();
++        let store = temp.path().join("host/grants.json");
++        let mut service = DirectoryService::open(store.clone()).unwrap();
++        let id = service.grant("plugin/key", &root, mode).unwrap()["id"].as_str().unwrap().into();
++        Fixture { _temp: temp, root, store, service, id }
++    }
++    fn begin(f: &mut Fixture, expected: Option<String>) -> String {
++        f.service
++            .call("plugin/key", "beginWrite", &json!({"grantId":f.id,"path":"snapshot.json","expectedEtag":expected}))
++            .unwrap()["handleId"]
++            .as_str()
++            .unwrap()
++            .into()
++    }
++    fn append(f: &mut Fixture, handle: &str, offset: u64, bytes: &[u8]) {
++        f.service
++            .call(
++                "plugin/key",
++                "write",
++                &json!({"handleId":handle,"offset":offset,"dataBase64":STANDARD.encode(bytes)}),
++            )
++            .unwrap();
++    }
++    fn commit(f: &mut Fixture, handle: &str, bytes: &[u8]) -> Result<Value> {
++        f.service.call(
++            "plugin/key",
++            "commit",
++            &json!({"handleId":handle,"sha256":format!("{:x}",Sha256::digest(bytes))}),
++        )
++    }
++    #[test]
++    fn restart_restores_same_directory_without_prompt() {
++        let f = fixture("readwrite");
++        drop(f.service);
++        let mut service = DirectoryService::open(f.store).unwrap();
++        assert_eq!(service.call("plugin/key", "restore", &json!({"grantId":f.id})).unwrap()["status"], "ready");
++        assert!(service
++            .call("other/key", "restore", &json!({"grantId":f.id}))
++            .unwrap_err()
++            .contains("NEEDS_AUTHORIZATION"));
++        assert!(service.call("plugin/new-key", "listGrants", &json!({})).unwrap().as_array().unwrap().is_empty());
++    }
++    #[test]
++    fn large_unicode_snapshot_is_atomic_and_streamed() {
++        let mut f = fixture("readwrite");
++        let bytes = "中文😀".repeat(450000).into_bytes();
++        let handle = begin(&mut f, None);
++        for (n, chunk) in bytes.chunks(CHUNK).enumerate() {
++            append(&mut f, &handle, (n * CHUNK) as u64, chunk);
++        }
++        assert!(!f.root.join("snapshot.json").exists());
++        commit(&mut f, &handle, &bytes).unwrap();
++        assert_eq!(std::fs::read(f.root.join("snapshot.json")).unwrap(), bytes);
++        let read = f.service.call("plugin/key", "openRead", &json!({"grantId":f.id,"path":"snapshot.json"})).unwrap();
++        let h = read["handleId"].as_str().unwrap();
++        let mut restored = vec![];
++        loop {
++            let part = f
++                .service
++                .call("plugin/key", "read", &json!({"handleId":h,"offset":restored.len(),"length":CHUNK}))
++                .unwrap();
++            restored.extend(STANDARD.decode(part["dataBase64"].as_str().unwrap()).unwrap());
++            if part["eof"] == true {
++                break;
++            }
++        }
++        assert_eq!(restored, bytes);
++    }
++    #[test]
++    fn failed_checksum_and_interrupted_write_preserve_previous_file() {
++        let mut f = fixture("readwrite");
++        std::fs::write(f.root.join("snapshot.json"), b"old timestamp").unwrap();
++        let old = Some(format!("{:x}", Sha256::digest(b"old timestamp")));
++        let handle = begin(&mut f, old.clone());
++        append(&mut f, &handle, 0, b"new");
++        assert!(commit(&mut f, &handle, b"incomplete").unwrap_err().contains("CHECKSUM_MISMATCH"));
++        let handle = begin(&mut f, old);
++        append(&mut f, &handle, 0, b"new");
++        drop(f.service);
++        assert_eq!(std::fs::read(f.root.join("snapshot.json")).unwrap(), b"old timestamp");
++        assert_eq!(std::fs::read_dir(f.root).unwrap().count(), 1);
++    }
++    #[test]
++    fn revoke_blocks_inflight_commit_and_survives_restart() {
++        let mut f = fixture("readwrite");
++        let handle = begin(&mut f, None);
++        append(&mut f, &handle, 0, b"new");
++        f.service.call("plugin/key", "revoke", &json!({"grantId":f.id})).unwrap();
++        assert!(commit(&mut f, &handle, b"new").is_err());
++        drop(f.service);
++        let mut service = DirectoryService::open(f.store).unwrap();
++        assert_eq!(service.call("plugin/key", "restore", &json!({"grantId":f.id})).unwrap()["status"], "revoked");
++        assert!(!f.root.join("snapshot.json").exists());
++    }
++    #[test]
++    fn missing_or_replaced_directory_never_recreated() {
++        let mut f = fixture("readwrite");
++        let moved = f.root.with_extension("moved");
++        std::fs::rename(&f.root, &moved).unwrap();
++        assert_eq!(f.service.call("plugin/key", "restore", &json!({"grantId":f.id})).unwrap()["status"], "unavailable");
++        assert!(!f.root.exists());
++        std::fs::create_dir(&f.root).unwrap();
++        assert_eq!(
++            f.service.call("plugin/key", "restore", &json!({"grantId":f.id})).unwrap()["status"],
++            "identityChanged"
++        );
++    }
++    #[test]
++    fn directory_preference_survives_restart_and_interrupted_switch() {
++        let mut f = fixture("readwrite");
++        f.service.call("plugin/key", "setPreferred", &json!({"grantId":f.id})).unwrap();
++        let pending = f.service.grant("plugin/key", &f.root, "readwrite").unwrap();
++        drop(f.service);
++        let mut service = DirectoryService::open(f.store).unwrap();
++        let grants = service.call("plugin/key", "listGrants", &json!({})).unwrap();
++        assert_eq!(grants.as_array().unwrap().iter().find(|g| g["preferred"] == true).unwrap()["id"], f.id);
++        assert_ne!(pending["id"], f.id);
++        service.call("plugin/key", "revoke", &json!({"grantId":f.id})).unwrap();
++        let grants = service.call("plugin/key", "listGrants", &json!({})).unwrap();
++        let selected = grants.as_array().unwrap().iter().find(|g| g["preferred"] == true).unwrap();
++        assert_eq!(selected["status"], "revoked");
++    }
++    #[test]
++    fn preference_persistence_failure_keeps_previous_selection() {
++        let mut f = fixture("readwrite");
++        f.service.call("plugin/key", "setPreferred", &json!({"grantId":f.id})).unwrap();
++        let next = f.service.grant("plugin/key", &f.root, "readwrite").unwrap();
++        // An existing directory cannot be replaced by a grant-store file.
++        f.service.store = f.root.clone();
++        assert!(f.service.call("plugin/key", "setPreferred", &json!({"grantId":next["id"]})).is_err());
++        let grants = f.service.call("plugin/key", "listGrants", &json!({})).unwrap();
++        assert_eq!(grants.as_array().unwrap().iter().find(|g| g["preferred"] == true).unwrap()["id"], f.id);
++        let mut reopened = DirectoryService::open(f.store).unwrap();
++        let grants = reopened.call("plugin/key", "listGrants", &json!({})).unwrap();
++        assert_eq!(grants.as_array().unwrap().iter().find(|g| g["preferred"] == true).unwrap()["id"], f.id);
++    }
++    #[test]
++    fn readonly_cannot_create_or_write() {
++        let mut f = fixture("read");
++        assert!(f
++            .service
++            .call("plugin/key", "beginWrite", &json!({"grantId":f.id,"path":"x","expectedEtag":null}))
++            .unwrap_err()
++            .contains("READ_ONLY"));
++        assert!(f.service.call("plugin/key", "mkdir", &json!({"grantId":f.id,"path":"sub"})).is_err());
++    }
++    #[test]
++    fn rejects_paths_and_symlink_escape() {
++        let mut f = fixture("readwrite");
++        for path in ["/tmp/x", "../x", "a/../x", "C:\\x", "a:b", "a//b", "a/./b", "a\\b", "x."] {
++            assert!(
++                f.service
++                    .call("plugin/key", "stat", &json!({"grantId":f.id,"path":path}))
++                    .unwrap_err()
++                    .contains("INVALID_PATH"),
++                "{path}"
++            );
++        }
++        #[cfg(unix)]
++        {
++            std::os::unix::fs::symlink(f._temp.path(), f.root.join("escape")).unwrap();
++            assert!(f
++                .service
++                .call("plugin/key", "openRead", &json!({"grantId":f.id,"path":"escape/host/grants.json"}))
++                .is_err());
++            assert!(f
++                .service
++                .call("plugin/key", "beginWrite", &json!({"grantId":f.id,"path":"escape/stolen","expectedEtag":null}))
++                .is_err());
++            assert!(!f._temp.path().join("stolen").exists());
++        }
++    }
++    #[test]
++    fn concurrent_commits_use_optimistic_conflict_check() {
++        let mut f = fixture("readwrite");
++        let a = begin(&mut f, None);
++        let b = begin(&mut f, None);
++        append(&mut f, &a, 0, b"first");
++        append(&mut f, &b, 0, b"second");
++        commit(&mut f, &a, b"first").unwrap();
++        assert!(commit(&mut f, &b, b"second").unwrap_err().contains("CONFLICT"));
++        assert_eq!(std::fs::read(f.root.join("snapshot.json")).unwrap(), b"first");
++    }
++    #[test]
++    fn handles_are_bound_to_owner_and_expire() {
++        let mut f = fixture("readwrite");
++        let handle = begin(&mut f, None);
++        assert!(f
++            .service
++            .call("other/key", "write", &json!({"handleId":handle,"offset":0,"dataBase64":"YQ=="}))
++            .unwrap_err()
++            .contains("INVALID_HANDLE"));
++        f.service.streams.get_mut(&handle).unwrap().touched = Instant::now() - TTL - Duration::from_secs(1);
++        assert!(commit(&mut f, &handle, b"").unwrap_err().contains("INVALID_HANDLE"));
++        assert_eq!(std::fs::read_dir(f.root).unwrap().count(), 0);
++    }
++    #[test]
++    fn paged_directory_listing_and_subdirectory_io() {
++        let mut f = fixture("readwrite");
++        for n in 0..505 {
++            std::fs::write(f.root.join(format!("f{n:03}")), b"").unwrap();
++        }
++        let a = f.service.call("plugin/key", "list", &json!({"grantId":f.id})).unwrap();
++        assert_eq!(a["entries"].as_array().unwrap().len(), 500);
++        let b = f.service.call("plugin/key", "list", &json!({"grantId":f.id,"cursor":a["cursor"]})).unwrap();
++        assert_eq!(b["entries"].as_array().unwrap().len(), 5);
++        f.service.call("plugin/key", "mkdir", &json!({"grantId":f.id,"path":"sub"})).unwrap();
++        assert!(f.root.join("sub").is_dir());
++    }
++}
+diff --git a/crates/dbx-plugin-runtime/src/plugins/manifest.rs b/crates/dbx-plugin-runtime/src/plugins/manifest.rs
+index 151e90d..6558bb0 100644
+--- a/crates/dbx-plugin-runtime/src/plugins/manifest.rs
++++ b/crates/dbx-plugin-runtime/src/plugins/manifest.rs
+@@ -14,11 +14,12 @@ pub const SUPPORTED_PLUGIN_MANIFEST_VERSION: u32 = 1;
+ /// plugin-initiated clipboard Host API (`host.clipboardRead` behind the
+ /// `host.clipboard:read` permission; clipboard writes reuse the existing
+ /// ungated `host.copy`). 1.4 adds consent-gated read-only data queries
+-/// (`host.queryData` behind `host.data:read`). All are additive: older plugins
++/// (`host.queryData` behind `host.data:read`). 1.5 adds persistent, user-selected
++/// directory access (`host.directory:read` / `host.directory:write`). All are additive: older plugins
+ /// keep working, and a plugin that wants a capability must check the
+ /// advertised version (or the matching `capabilities` / `host.features` entry)
+ /// before calling it.
+-pub const SUPPORTED_PLUGIN_HOST_API_VERSION: &str = "1.4.0";
++pub const SUPPORTED_PLUGIN_HOST_API_VERSION: &str = "1.5.0";
+ /// Capabilities the host advertises to a plugin backend at `plugin/initialize`.
+ pub const SUPPORTED_PLUGIN_HOST_FEATURES: &[&str] = &["host.requestUserInput"];
+ pub const SUPPORTED_PLUGIN_PROTOCOL_VERSION: u32 = 1;
+@@ -34,6 +35,8 @@ pub const SUPPORTED_PLUGIN_PERMISSIONS: &[&str] = &[
+     "host.plans:read",
+     "host.schema:read",
+     "host.storage",
++    "host.directory:read",
++    "host.directory:write",
+     "host.ai",
+     "host.clipboard:read",
+     "host.data:read",
+@@ -2981,10 +2984,10 @@ mod tests {
+             "the host must satisfy the data-query floor it asks plugins to declare"
+         );
+ 
+-        for requirement in ["^1.0", "^1.1", "^1.2", "^1.3", "^1.4", ">=1.1.0, <2.0.0"] {
++        for requirement in ["^1.0", "^1.1", "^1.2", "^1.3", "^1.4", "^1.5", ">=1.1.0, <2.0.0"] {
+             assert!(host_api_requirement_errors(requirement).is_empty(), "{requirement} must be satisfiable");
+         }
+-        for requirement in [">=1.5.0", "^2.0"] {
++        for requirement in [">=1.6.0", "^2.0"] {
+             assert!(!host_api_requirement_errors(requirement).is_empty(), "{requirement} must be rejected");
+         }
+     }
+diff --git a/docs/content/docs/plugin-development.cn.mdx b/docs/content/docs/plugin-development.cn.mdx
+index 7f7d5e6..d2dd663 100644
+--- a/docs/content/docs/plugin-development.cn.mdx
++++ b/docs/content/docs/plugin-development.cn.mdx
+@@ -654,6 +654,16 @@ const offDrag = fileTransfer.onDragState((active) => showDropOverlay(active));
+ 
+ 桌面端与网页端的行为差异：请以 init 消息里 additive 的 `capabilities.fileTransfer` 标志位（`pick`、`beginSave`、`read`、`drop`、`folderExpansion`）做能力探测，不要靠试调用。桌面端 `pick` / `beginSave` 走原生对话框、`onDrop` 接收系统拖放（句柄由宿主惰性打开，读时分块流式，因此超大文件夹与大文件都不会占满句柄；选取文件数超过共享句柄池时自动降级为惰性条目，不会静默丢弃）。网页端 `pick` 回退到浏览器文件选择器、`beginSave` 回退为内存缓冲加浏览器下载、`onDrop` / `onDragState` 不会触发（`drop`/`folderExpansion` 为 `false`）、句柄也没有 `relativePath`。`onDrop` 只在拖放落点位于本插件工作台区域内时触发；落点在宿主其他区域时保持宿主自身的行为。
+ 
++### 持久化目录授权（Host API 1.5）
++
++纯前端插件可声明 `host.directory:read` / `host.directory:write`，检查
++`capabilities.directoryAccess` 后使用 `dbxPlugin.directory`。系统选择器负责
++首次授权；宿主持久化授权记录，重启后可用 `restore(grantId)` 校验并恢复。
++输入路径仅用于定位选择器，不是授权。接口提供目录枚举、文件分块读写、
++校验与原子替换；插件中心可撤销授权，原文件保留。当前桌面常规安装支持，
++Web 端能力位为 false。完整方法、权限边界及失败处理见源码
++`plugins/persistent-directory-access.md`。
++
+ ### 持久化 UI 状态
+ 
+ 沙箱是 opaque origin，`localStorage` 在里面会直接抛错。需要跨重载或跨应用重启保留状态的工作台（最近访问的目录、面板尺寸、草稿等）改用 `window.dbxPlugin.storage`。它需要 `host.storage` 权限，并以 init 消息里的 `capabilities.storage` 广播；使用前请同时探测这两者。
+diff --git a/plugins/manifest.schema.json b/plugins/manifest.schema.json
+index 7cdb128..9bd6d52 100644
+--- a/plugins/manifest.schema.json
++++ b/plugins/manifest.schema.json
+@@ -30,7 +30,7 @@
+       "uniqueItems": true,
+       "items": {
+         "anyOf": [
+-          { "enum": ["host.events", "host.binary", "host.workbench", "host.filesystem", "host.plans:read", "host.schema:read", "host.storage", "host.ai", "host.clipboard:read", "host.data:read", "host.connections:read", "host.connections::read"] },
++          { "enum": ["host.events", "host.binary", "host.workbench", "host.filesystem", "host.plans:read", "host.schema:read", "host.storage", "host.directory:read", "host.directory:write", "host.ai", "host.clipboard:read", "host.data:read", "host.connections:read", "host.connections::read"] },
+           { "type": "string", "pattern": "^host\\.network:https://[A-Za-z0-9._-]+(:[0-9]+)?$" },
+           { "type": "string", "pattern": "^host\\.openUrl:https?://[^\\s/?#@*\\\\]+$", "maxLength": 4109 }
+         ]
+diff --git a/plugins/persistent-directory-access.md b/plugins/persistent-directory-access.md
+new file mode 100644
+index 0000000..54757c8
+--- /dev/null
++++ b/plugins/persistent-directory-access.md
+@@ -0,0 +1,139 @@
++# Persistent directory access (Host API 1.5)
++
++This is a generic host filesystem capability for UI-only plugins. The host does
++not know database documents, snapshot formats, indexes, compression, or sync times.
++Desktop integration: Tauri 2 / Rust, Vue 3 / TypeScript. The current macOS build
++has no App Sandbox entitlement; Windows is a conventional Win32 desktop build.
++Browser hosts advertise `capabilities.directoryAccess === false`. Sandboxed OS
++packages that require bookmarks or portal tokens need a platform credential
++adapter before they can advertise persistent support; a path is not such a token.
++
++## Consent and ownership
++
++Declare `host.directory:read` and, for writes, `host.directory:write`. Check
++`capabilities.directoryAccess`. A native picker names the installed plugin,
++requested mode, and persistence. An `initialPath` only positions that picker;
++no API opens an arbitrary root supplied by a plugin. Cancel returns `null`.
++
++The host stores grants in its own `directory-grants/grants.json`, outside plugin
++UI storage. Entries bind random UUIDs to plugin ID, publisher, installer signing
++key ID, repository provenance, mode, and directory identity. On Unix the identity
++is device + inode; on Windows it is volume + file index. The file is atomically
++replaced with private permissions. `setPreferred(id)` can persist one default
++directory per principal, independently of UI-storage quotas. New grants do not
++change that preference; a plugin selects its default after completing any copy
++or validation work. Revocation preserves the default tombstone to prevent
++silent fallback to an older directory. Plugin callers receive display metadata and an
++opaque ID, not the host record. A new grant is independent of older handles.
++
++The trusted iframe bridge supplies the caller ID; native commands recheck the
++installed manifest and derive ownership from installer provenance. A plugin ID
++inside request parameters never selects the caller. The selected directory may
++not contain the host authorization store. Neither the manifest permission nor a
++saved path grants filesystem access by itself.
++
++On restart, `restore(id)` opens the original directory without prompting and
++compares its identity. Missing/unmounted directories return `unavailable` and
++are never recreated. A replacement at the same path returns `identityChanged`.
++Revoked grants return `revoked`; unknown or changed plugin principals receive
++`[NEEDS_AUTHORIZATION]`. Every operation revalidates the grant and directory, and
++OS access checks still apply. Effective file permissions can change between
++operations, so successful restore does not guarantee a subsequent write.
++
++Plugin Center → installed plugin → Directory access lists active grants,
++including grants held by prior signing identities, and can revoke them. Revocation
++is serialized with commits, persists before returning, and closes staged handles.
++It does not delete user files. `listGrants()` includes revoked tombstones so a UI
++recovering its preferred directory never silently falls back to an older grant.
++
++## UI SDK
++
++```js
++const api = window.dbxPlugin;
++await api.ready;
++if (!api.capabilities.directoryAccess) throw new Error('unsupported host');
++
++// Only from the plugin's explicit user action:
++const grant = await api.directory.request({
++  mode: 'readwrite', persistence: 'required', initialPath: '/optional/picker/hint'
++});
++if (!grant) return; // cancellation keeps previous settings
++// After application-specific validation/copy succeeds:
++await api.directory.setPreferred(grant.id);
++
++// Store just grant.id in UI preferences. On subsequent launches:
++const restored = await api.directory.restore(grant.id);
++if (restored.status !== 'ready') return; // display recovery action, no prompt loop
++const current = await api.directory.stat(grant.id, 'example.json');
++const upload = await api.directory.beginWrite(grant.id, 'example.json', {
++  expectedEtag: current.etag // null means create only; never blind overwrite
++});
++try {
++  // Split bytes into <= upload.chunkBytes and base64-encode each chunk.
++  await api.directory.write(upload.handleId, 0, dataBase64);
++  await api.directory.commit(upload.handleId, sha256OfCompleteBytes);
++} catch (error) {
++  await api.directory.abort(upload.handleId).catch(() => {});
++  throw error;
++}
++```
++
++All methods return promises. `Grant` includes `id`, `displayName`, `displayPath`,
++`mode`, `persistent`, `preferred`, `createdAt` (Unix seconds), `status`, `chunkBytes`,
++`maxFileBytes`. Display paths are informational.
++
++| Method | Result / behavior |
++| --- | --- |
++| `request({mode,persistence?,initialPath?})` | `Grant \| null`; native consent |
++| `listGrants()` | This principal's grants in creation order, including revoked records |
++| `setPreferred(grantId)` | Persist this principal's default directory; no file data changes |
++| `restore(grantId)` | Grant with `ready`, `unavailable`, `identityChanged`, `revoked` |
++| `revoke(grantId)` | Revoke, close in-flight streams; leave files |
++| `list(grantId,path='',cursor?)` | `{entries:[{name,kind}],cursor}`; 500 entries/page; skip symlinks and own temporary files |
++| `stat(grantId,path)` | `{etag:string\|null}`; SHA-256, null if missing |
++| `mkdir(grantId,path)` | Create one relative directory |
++| `openRead(grantId,path)` | `{handleId,size,etag,chunkBytes}` |
++| `read(handleId,offset,length)` | `{dataBase64,length,eof}` |
++| `close(handleId)` | Close read or discard staged write |
++| `beginWrite(grantId,path,{expectedEtag})` | `{handleId,chunkBytes}` |
++| `write(handleId,offset,dataBase64)` | `{written}`; sequential chunks |
++| `commit(handleId,sha256)` | `{committed:true,etag}` |
++| `abort(handleId)` | Discard staged bytes |
++
++Paths must be relative, with `/` components. Absolute, traversal, backslash,
++colon, control characters, ambiguous trailing dots/spaces and DOS device names
++are rejected. Filesystem resolution uses `cap-std` directory capabilities,
++including handle-relative parent resolution and rename, rather than string
++prefix checks. Reads accept regular files; Unix opens are nonblocking to avoid
++FIFO hangs. Handles are principal-bound, limited (16/principal, 128 total) and
++expire after ten idle minutes. Workbench reload/close releases its own handles.
++
++Each chunk is <= 512 KiB. Each file is <= 512 MiB. Staged files are created
++privately in the target parent. Commit verifies the full SHA-256, rechecks the
++original parent identity and target etag, flushes the file and atomically renames
++it over the destination. Hash, conflict, revocation, write and flush failures
++before rename discard staging and retain the previous file. A crash can leave a
++hidden `.dbx-write-*` file; it is never a committed document. The host serializes
++its own writers. Etag checks do not provide cross-process CAS against arbitrary
++external programs modifying the same file; prefer a dedicated plugin directory.
++Use local filesystems with atomic replacement semantics for durable snapshots.
++
++## Failure handling
++
++Errors preserve `[CODE]` prefixes across the bridge. Applications should retain
++previous committed files and success timestamps, and must not retry as blind
++writes or auto-recreate missing roots.
++
++- `REVOKED`, `NEEDS_AUTHORIZATION`, `IDENTITY_CHANGED`: explicit reauthorization.
++- `UNAVAILABLE`: keep grant and retry after the volume/directory returns.
++- `READ_ONLY`, `ACCESS_DENIED`: retain readable data; correct mode or OS rights.
++- `CONFLICT`: reload before deciding how to merge or replace.
++- `DISK_FULL`, `IO_ERROR`, `CHECKSUM_MISMATCH`: abort the upload; preserve old data.
++- `NOT_FOUND`: handle a missing file independently of database/network access.
++- `TOO_LARGE`, `BUSY`, `INVALID_ARGUMENT`, `INVALID_PATH`, `INVALID_HANDLE`: fix the
++  request, bound concurrency or reopen an expired stream.
++
++Atomicity is per file. Multi-file transactions and application data validation
++belong to the plugin. An app wanting complete snapshots must stage the entire
++snapshot in memory before writing, and update its successful-sync state only
++when commit succeeds. Unknown snapshot format versions must be preserved.
+diff --git a/src-tauri/Cargo.toml b/src-tauri/Cargo.toml
+index 9730f5b..0414484 100644
+--- a/src-tauri/Cargo.toml
++++ b/src-tauri/Cargo.toml
+@@ -29,6 +29,7 @@ system-fonts = ["dbx-core/system-fonts"]
+ tauri-build = { version = "2.5.6", features = [] }
+ 
+ [dependencies]
++dbx-directory-access = { path = "../crates/dbx-directory-access" }
+ serde = { version = "1.0", features = ["derive"] }
+ serde_json = "1.0"
+ tempfile = "3"
+diff --git a/src-tauri/src/commands/mod.rs b/src-tauri/src/commands/mod.rs
+index 31b5fab..8b4ea8f 100644
+--- a/src-tauri/src/commands/mod.rs
++++ b/src-tauri/src/commands/mod.rs
+@@ -45,6 +45,7 @@ pub mod pl_debug;
+ pub mod plugin_download;
+ pub mod plugin_download_file;
+ pub mod plugin_file;
++pub mod plugin_directory;
+ pub mod plugin_media;
+ pub mod plugin_storage;
+ pub mod plugins;
+diff --git a/src-tauri/src/commands/plugin_directory.rs b/src-tauri/src/commands/plugin_directory.rs
+new file mode 100644
+index 0000000..5787f08
+--- /dev/null
++++ b/src-tauri/src/commands/plugin_directory.rs
+@@ -0,0 +1,145 @@
++//! Desktop adapter for generic persistent directory capabilities.
++//! Native dialogs anchor consent; the opaque iframe never supplies a root path.
++use super::connection::AppState;
++use dbx_directory_access::DirectoryService;
++use serde_json::{json, Value};
++use std::sync::{Arc, Mutex};
++use tauri::{Manager, State};
++use tauri_plugin_dialog::DialogExt;
++
++#[derive(Default)]
++pub struct PluginDirectoryState(Arc<Mutex<Option<DirectoryService>>>);
++fn principal(state: &AppState, plugin_id: &str, write: bool) -> Result<(String, String), String> {
++    let plugin = state.plugins.find_plugin(plugin_id)?.ok_or("[NEEDS_AUTHORIZATION] Plugin is not installed")?;
++    if !plugin.compatibility.compatible {
++        return Err("[NEEDS_AUTHORIZATION] Plugin is incompatible".into());
++    }
++    let permission = if write { "host.directory:write" } else { "host.directory:read" };
++    if !plugin.manifest.permissions.iter().any(|p| p == permission) {
++        return Err(format!("[ACCESS_DENIED] Missing {permission}"));
++    }
++    // Provenance comes from the installer, not the plugin request. A publisher
++    // or signing-key change cannot inherit a previous installation's grants.
++    let owner = json!([
++        plugin.manifest.id,
++        plugin.manifest.publisher,
++        plugin.provenance.as_ref().and_then(|p| p.signing_key_id.as_ref()),
++        plugin.provenance.as_ref().and_then(|p| p.repository_id.as_ref())
++    ])
++    .to_string();
++    Ok((owner, plugin.manifest.name))
++}
++fn with_service<T>(
++    app: &tauri::AppHandle,
++    state: &Mutex<Option<DirectoryService>>,
++    f: impl FnOnce(&mut DirectoryService) -> Result<T, String>,
++) -> Result<T, String> {
++    let mut service = state.lock().map_err(|_| "[IO_ERROR] Directory service lock poisoned")?;
++    if service.is_none() {
++        let path = app.path().app_data_dir().map_err(|e| e.to_string())?.join("directory-grants/grants.json");
++        *service = Some(DirectoryService::open(path)?);
++    }
++    f(service.as_mut().unwrap())
++}
++#[tauri::command]
++pub async fn plugin_directory_request(
++    app: tauri::AppHandle,
++    state: State<'_, Arc<AppState>>,
++    directories: State<'_, PluginDirectoryState>,
++    plugin_id: String,
++    options: Value,
++) -> Result<Value, String> {
++    let mode = options.get("mode").and_then(Value::as_str).unwrap_or("read");
++    if !matches!(mode, "read" | "readwrite") {
++        return Err("[INVALID_ARGUMENT] Invalid directory mode".into());
++    }
++    let (owner, name) = principal(&state, &plugin_id, mode == "readwrite")?;
++    let title = if crate::current_app_locale(&app).starts_with("zh") {
++        let access = if mode == "readwrite" { "读写" } else { "读取" };
++        format!("授权「{name}」{access}所选目录及内容（重启后保留，可撤销）")
++    } else {
++        let access = if mode == "readwrite" { "read and write" } else { "read" };
++        format!("{name} — select directory to {access} (persists until revoked)")
++    };
++    let mut dialog = app.dialog().file().set_title(title);
++    // A typed path is only a picker hint. The grant always uses its native result.
++    if let Some(path) = options.get("initialPath").and_then(Value::as_str).filter(|p| p.len() <= 4096) {
++        dialog = dialog.set_directory(path);
++    }
++    let (tx, rx) = tokio::sync::oneshot::channel();
++    dialog.pick_folder(move |path| {
++        let _ = tx.send(path);
++    });
++    let Some(path) = rx.await.map_err(|e| e.to_string())? else { return Ok(Value::Null) };
++    let path = path.into_path().map_err(|e| e.to_string())?;
++    let (current_owner, _) = principal(&state, &plugin_id, mode == "readwrite")?;
++    if current_owner != owner {
++        return Err("[NEEDS_AUTHORIZATION] Plugin identity changed".into());
++    }
++    let mode = mode.to_owned();
++    let directories = directories.0.clone();
++    tauri::async_runtime::spawn_blocking(move || {
++        with_service(&app, &directories, |service| service.grant(&owner, &path, &mode))
++    })
++    .await
++    .map_err(|e| e.to_string())?
++}
++#[tauri::command]
++pub async fn plugin_directory_call(
++    app: tauri::AppHandle,
++    state: State<'_, Arc<AppState>>,
++    directories: State<'_, PluginDirectoryState>,
++    plugin_id: String,
++    operation: String,
++    params: Value,
++) -> Result<Value, String> {
++    // Close/abort/revoke remain possible for a read-only plugin. Every write
++    // chunk and commit rechecks both the manifest and the persisted grant.
++    let write = matches!(operation.as_str(), "beginWrite" | "write" | "commit" | "mkdir");
++    let (owner, _) = principal(&state, &plugin_id, write)?;
++    let directories = directories.0.clone();
++    tauri::async_runtime::spawn_blocking(move || {
++        with_service(&app, &directories, |service| service.call(&owner, &operation, &params))
++    })
++    .await
++    .map_err(|e| e.to_string())?
++}
++
++/// Only the trusted Plugin Center calls this; no SDK route exists. Includes
++/// grants from prior signing identities so users can revoke them after updates.
++#[tauri::command]
++pub async fn plugin_directory_manage(
++    app: tauri::AppHandle,
++    directories: State<'_, PluginDirectoryState>,
++    plugin_id: String,
++    revoke_id: Option<String>,
++) -> Result<Value, String> {
++    let directories = directories.0.clone();
++    tauri::async_runtime::spawn_blocking(move || {
++        with_service(&app, &directories, |service| {
++            let own = service
++                .inspect_grants()
++                .into_iter()
++                .filter(|(owner, _)| {
++                    serde_json::from_str::<Value>(owner)
++                        .ok()
++                        .and_then(|v| v.get(0).and_then(Value::as_str).map(str::to_owned))
++                        .as_deref()
++                        == Some(plugin_id.as_str())
++                })
++                .collect::<Vec<_>>();
++            if let Some(id) = &revoke_id {
++                let (owner, grant) = own
++                    .iter()
++                    .find(|(_, g)| g["id"].as_str() == Some(id.as_str()))
++                    .ok_or("[NEEDS_AUTHORIZATION] Unknown grant")?;
++                service.call(owner, "revoke", &json!({"grantId":grant["id"]}))?;
++            }
++            Ok(Value::Array(
++                own.into_iter().filter(|(_, g)| g["id"].as_str() != revoke_id.as_deref()).map(|(_, g)| g).collect(),
++            ))
++        })
++    })
++    .await
++    .map_err(|e| e.to_string())?
++}
+diff --git a/src-tauri/src/lib.rs b/src-tauri/src/lib.rs
+index 2e075e3..c81ebed 100644
+--- a/src-tauri/src/lib.rs
++++ b/src-tauri/src/lib.rs
+@@ -2033,6 +2033,7 @@ pub fn run() {
+         .manage(commands::plugin_file::PluginFileState::new())
+         .manage(commands::plugin_media::PluginMediaState::new())
+         .manage(commands::plugin_storage::PluginUiStorageState::new())
++        .manage(commands::plugin_directory::PluginDirectoryState::default())
+         .manage(AppLocaleState::new())
+         // Managed on the builder, not in setup: `build_app_menu` runs before
+         // setup and reads it to render the About panel.
+@@ -2559,6 +2560,9 @@ pub fn run() {
+             commands::plugin_file::plugin_file_close,
+             commands::plugin_media::plugin_media_open,
+             commands::plugin_media::plugin_media_close,
++            commands::plugin_directory::plugin_directory_manage,
++            commands::plugin_directory::plugin_directory_request,
++            commands::plugin_directory::plugin_directory_call,
+             commands::plugin_storage::plugin_ui_storage_get,
+             commands::plugin_storage::plugin_ui_storage_set,
+             commands::plugin_storage::plugin_ui_storage_delete,

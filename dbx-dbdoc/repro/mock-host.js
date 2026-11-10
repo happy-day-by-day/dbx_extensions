@@ -62,6 +62,16 @@
     INDEXES.push(['public', name, 'id', 1, name + '_pkey', true, true, false])
   }
 
+  // Native-storage stress fixture: incompressible comments exceed the UI-store budget.
+  const entropySize = Math.min(600000, Number(params.get('cacheEntropy')) || 0)
+  if (entropySize) for (const [schema, table] of TABLES.slice(0, 4)) {
+    const bytes = new Uint8Array(entropySize)
+    for (let offset = 0; offset < bytes.length; offset += 65536) crypto.getRandomValues(bytes.subarray(offset, offset + 65536))
+    let text = ''
+    for (let offset = 0; offset < bytes.length; offset += 8192) text += String.fromCharCode(...bytes.subarray(offset, offset + 8192))
+    COLUMNS.find((column) => column[0] === schema && column[1] === table)[8] = btoa(text)
+  }
+
   // 紧凑文档页验收：长表名、长注释和完整属性，不改变发行代码。
   const displayTable = params.get('tableName') || 'orders'
   if (displayTable !== 'orders') for (const rows of [TABLES, COLUMNS, INDEXES, FKS, CHECKS]) {
@@ -85,6 +95,11 @@
     }
     if (/^SELECT 1$/i.test(s.trim())) return q([], [])
     if (s.includes(' as available')) return q(['available'], [[params.has('mysql57') ? 0 : 1]])
+    if (/pg_database/i.test(s)) {
+      const count = Math.min(1000, Number(params.get('batchDatabases')) || 0)
+      const names = count ? Array.from({ length: count }, (_, i) => i ? 'new_db_' + String(i).padStart(3, '0') : 'appdb') : ['appdb', 'events', 'never_cached']
+      return q(['database_name'], names.map((name) => [name]))
+    }
     if (/information_schema\.schemata/i.test(s)) {
       const dbs = window.__schemata || [['shop'], ['other']]
       return q(['database_name'], dbs)
@@ -174,6 +189,7 @@
     try { rememberedStorage = JSON.parse(localStorage.getItem(persistentStorageKey) || '[]') } catch { /* start empty */ }
   }
   const storageMap = new Map(rememberedStorage)
+  window.__uiStorage = storageMap
   let currentContext = params.has('empty') || params.has('picker') ? {} : { connectionId: 'c1', dbType: 'postgres', name: '示例业务数据库', database: 'appdb' }
   if (params.has('picker') || params.has('connections')) storageMap.set('dbdoc.recent', JSON.stringify([
     { connectionId: 'dev', name: '业务开发环境', dbType: 'mysql', database: 'public', ts: 600 },
@@ -209,23 +225,39 @@
   let lastCopied = ''
   let savedBytes = 0
   window.__qcount = { tables: 0, detail: 0, search: 0, probe: 0, databases: 0, data: 0, all: 0 }
+  async function directoryCall(operation, payload) {
+    if (window.__directoryFailure === operation) throw new Error('[DISK_FULL] 模拟快照写入失败')
+    const response = await fetch('/directory', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ operation, params: payload }) })
+    const result = await response.json()
+    if (result.error) throw new Error(typeof result.error === 'string' ? result.error : result.error.message)
+    return result.result
+  }
   window.dbxPlugin = {
     ready: Promise.resolve(),
     contributionId: params.has('queryPage') ? 'com.sazs.dbdoc.query' : 'com.sazs.dbdoc.main',
-    capabilities: { dataApi: !params.has('dataUnavailable'), schemaMetadataApi: true, storage: true, clipboardWrite: true, workbenchTitle: !params.has('noSetTitle') },
+    capabilities: { dataApi: !params.has('dataUnavailable'), schemaMetadataApi: true, storage: true, clipboardWrite: true, workbenchTitle: !params.has('noSetTitle'), connectionsApi: !params.has('noConnectionsApi') },
     theme: { appearance: params.get('theme') || 'light', tokens: {} },
     get context() { return currentContext },
     onContext: (cb) => {
       contextCb = cb
       return () => { contextCb = null }
     },
+    getConnections: async () => [
+      { id: params.get('batchConnectionId') || 'c1', name: '数据分析环境', dbType: 'postgres', database: 'appdb', connected: !connectionClosed },
+      { id: 'dev', name: '业务开发环境', dbType: 'mysql', database: 'public', connected: false },
+      { id: 'slow', name: '集成测试环境', dbType: 'mysql', database: 'staging', connected: false }
+    ],
+    ...(params.has('nativeSnapshots') ? { invoke: (method, payload) => {
+      if (!method.startsWith('snapshotDirectory/')) return Promise.reject(new Error('unsupported backend method'))
+      return directoryCall(method.slice('snapshotDirectory/'.length), payload)
+    } } : {}),
     queryData: async (req) => {
       const s = String(req.sql).replace(/\s+/g, ' ')
       const dataQuery = /^SELECT \* FROM\b/i.test(s.trim())
       if (dataQuery) window.__qcount.data += 1
       const fieldSearch = /\bilike\b/i.test(s)
       window.__qcount.all += 1
-      if (/information_schema\.schemata/i.test(s)) window.__qcount.databases += 1
+      if (/information_schema\.schemata|pg_database|sys\.databases/i.test(s)) window.__qcount.databases += 1
       if (/information_schema\.tables/i.test(s)) window.__qcount.tables += 1
       else if (fieldSearch) window.__qcount.search += 1
       else if (/pg_index|information_schema\.columns|con\.contype|statistics/i.test(s)) window.__qcount.detail += 1
@@ -245,7 +277,7 @@
       if (denied) throw new Error('PLUGIN_DATA_ACCESS_NOT_GRANTED: 模拟授权拒绝')
       if (connectionClosed || (closedDatabase && req.database === closedDatabase)) throw new Error('Connection is not open')
       if (dataQuery && params.has('queryFail')) throw new Error('模拟查询执行失败')
-      if (databaseFail && /information_schema\.schemata/i.test(s)) throw new Error('模拟数据库列表读取失败')
+      if (databaseFail && /information_schema\.schemata|pg_database|sys\.databases/i.test(s)) throw new Error('模拟数据库列表读取失败')
       if (catalogFailed && /information_schema\.tables/i.test(s)) throw new Error('模拟目录读取失败')
       if (fieldSearch && searchFailed) throw new Error('模拟字段搜索失败')
       if (allDetailsFailed && queriedTable) throw new Error('模拟全部表元数据读取失败')
@@ -270,6 +302,10 @@
     },
     getTableMetadata: async () => ({ columns: [] }),
     storage: {
+      delete: async (key) => {
+        storageMap.delete(key)
+        if (params.has('persist')) localStorage.setItem(persistentStorageKey, JSON.stringify([...storageMap]))
+      },
       get: async (key) => {
         if (params.has('lateConnectionName') && key === 'dbdoc.recent') await sleep(300)
         if (params.has('storagefail')) throw new Error('模拟存储不可用')
@@ -322,7 +358,7 @@
   if (params.has('initdelay')) {
     window.dbxPlugin.capabilities = {}
     window.dbxPlugin.ready = sleep(300).then(() => {
-      window.dbxPlugin.capabilities = { dataApi: true, schemaMetadataApi: true, storage: true, clipboardWrite: true, workbenchTitle: !params.has('noSetTitle') }
+      window.dbxPlugin.capabilities = { dataApi: true, schemaMetadataApi: true, storage: true, clipboardWrite: true, workbenchTitle: !params.has('noSetTitle'), connectionsApi: !params.has('noConnectionsApi') }
     })
     setTimeout(() => window.__emitContext({ ...currentContext, schema: 'sales', table: 'orders' }), 80)
   }

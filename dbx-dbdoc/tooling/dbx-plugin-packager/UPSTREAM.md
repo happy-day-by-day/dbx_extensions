@@ -1,0 +1,1 @@
+Vendored unchanged official DBX low-level packager from t8y2/dbx at 28a60d061b1b063d192da9935c08e06b81ce8be5, plugins/sdk/packager. Apache-2.0. This packaging tool runs only when building releases; it is not included in the plugin and requires no host modifications.

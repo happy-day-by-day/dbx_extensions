@@ -6,7 +6,7 @@ export function modalFocus(node: HTMLElement) {
   node.tabIndex = -1
   queueMicrotask(() => (node.querySelector<HTMLElement>('input:checked') ?? focusable()[0] ?? node).focus())
   const onKeydown = (event: KeyboardEvent) => {
-    if (event.key !== 'Tab') return
+    if (event.key !== 'Tab' || event.defaultPrevented || !node.contains(document.activeElement)) return
     const items = focusable()
     const index = items.indexOf(document.activeElement as HTMLElement)
     if (!items.length) { event.preventDefault(); node.focus(); return }

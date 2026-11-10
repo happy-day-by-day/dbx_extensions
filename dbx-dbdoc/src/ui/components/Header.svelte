@@ -1,10 +1,11 @@
 <script lang="ts">
   import Icon from './Icon.svelte'
-  let { connectionName, database, dbType, tableCount, columnCount, truncated, busy, degraded, offline, offlineInfo = null, syncStatus = null, onrefresh, onexport, onchangeresource }:
+  import SnapshotDirectoryButton from './SnapshotDirectoryButton.svelte'
+  let { connectionName, database, dbType, tableCount, columnCount, truncated, busy, degraded, offline, offlineInfo = null, syncStatus = null, onrefresh, onexport, onchangeresource, onsnapshot }:
     { connectionName: string; database: string; dbType: string; tableCount: number; columnCount: number; truncated: boolean;
       busy: boolean; degraded: boolean; offline: boolean;
       offlineInfo?: { savedAt: number; lastSyncedAt?: number; detailAt: number; cachedCount: number; refreshError: string } | null;
-      syncStatus?: { label: string; description: string; busy: boolean; failed: boolean; retryDisabled: boolean; onretry: () => void } | null; onrefresh: () => void; onexport: () => void; onchangeresource: () => void } = $props()
+      syncStatus?: { label: string; description: string; busy: boolean; failed: boolean; retryDisabled: boolean; onretry: () => void } | null; onrefresh: () => void; onexport: () => void; onchangeresource: () => void; onsnapshot: () => void } = $props()
   function dismissOfflineInfo(node: HTMLDetailsElement) {
     const onPointer = (event: PointerEvent) => { if (!node.contains(event.target as Node)) node.open = false }
     const onKey = (event: KeyboardEvent) => {
@@ -25,6 +26,7 @@
       <span class="engine-tag">{dbType.toUpperCase()}</span><Icon name="down" size={15} />
     </button>
     <div class="workspace-actions">
+      <SnapshotDirectoryButton onclick={onsnapshot} disabled={busy} />
       {#if offline && offlineInfo}<details class="offline-status" use:dismissOfflineInfo>
         <summary aria-label="本地缓存说明" title="点击查看最后同步时间并刷新本地缓存">本地缓存<Icon name="down" size={12} /></summary>
         <div class="offline-info">

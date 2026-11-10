@@ -1,0 +1,40 @@
+{
+  "baseCommit": "28a60d061b1b063d192da9935c08e06b81ce8be5",
+  "sourcePath": "/Users/sazs/code/github/dbx",
+  "branch": "codex/persistent-directory-access",
+  "stack": {
+    "host": "Tauri 2 / Rust",
+    "frontend": "Vue 3 / TypeScript",
+    "macOSAppSandbox": false
+  },
+  "apiVersion": "1.5.0",
+  "patchSha256": "175a7e33a80258b8120d324d5ef98f8187235701c6e94b15c32e50286d74a95c",
+  "patchBytes": 82983,
+  "patchAppliesToCleanBase": true,
+  "patchReverseMatchesWorkingTree": true,
+  "directoryCoreTests": 12,
+  "manifestTests": 55,
+  "frontendTests": {
+    "files": 4,
+    "passed": 277
+  },
+  "typecheck": {
+    "passed": true,
+    "command": "NODE_OPTIONS=--max-old-space-size=8192 pnpm typecheck"
+  },
+  "nativeCompile": {
+    "passed": true,
+    "command": "cargo check -p dbx --no-default-features",
+    "unrelatedExistingWarnings": 2
+  },
+  "directoryCoreCrossChecks": [
+    "x86_64-pc-windows-gnu",
+    "x86_64-unknown-linux-gnu"
+  ],
+  "limitations": [
+    "Native directory-picker UI was not exercised; browser integration supplied a picker result through a test-only Rust protocol adapter.",
+    "Windows/Linux directory core passed cross-compilation checks but was not executed on those platforms.",
+    "No host installer was built, installed, published or substituted for the current application.",
+    "OS-sandbox distributions require persistent bookmark/token/portal adapters before enabling this capability."
+  ]
+}

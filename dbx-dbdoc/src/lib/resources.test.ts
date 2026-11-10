@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import { connectionMatches, groupConnections, mergeDatabases, currentSessionDatabase, summarizeDocumentCache, verifyDatabaseSession } from './resources'
+import { connectionMatches, groupConnections, documentResources, mergeDatabases, currentSessionDatabase, summarizeDocumentCache, loadLocalDocumentList, verifyDatabaseSession } from './resources'
 import type { DbxBridge } from './types'
-import type { OfflineDocument } from './offline'
+import { offlineKey, type OfflineDocument } from './offline'
 import type { RecentConnection } from './recent'
 import { cleanConnectionName, connectionLabel, connectionSubtitle } from './connectionLabels'
 
@@ -20,6 +20,30 @@ describe('资源选择器', () => {
       { connectionId: 'b', name: '数据分析', dbType: 'postgres', databases: ['shop'], lastUsed: 30 }
     ])
     expect(JSON.stringify(recent)).toBe(original)
+  })
+
+  it('平铺所有连接的数据库，同名数据库保留各自的名称、类型和独立缓存键', () => {
+    const documents = documentResources(groupConnections(recent))
+    expect(documents.map(({ connection, database }) => [connection.connectionId, connection.name, connection.dbType, database])).toEqual([
+      ['a', '业务开发', 'mysql', 'reporting'],
+      ['a', '业务开发', 'mysql', 'shop'],
+      ['b', '数据分析', 'postgres', 'shop']
+    ])
+    const cache = new Map(documents.map((document) => [document.key, document.connection.name]))
+    expect(cache.size).toBe(3)
+    expect(cache.get(documents[1].key)).toBe('业务开发')
+    expect(cache.get(documents[2].key)).toBe('数据分析')
+  })
+
+  it('刷新当前连接合并新库，保留其他连接的文档，且不修改历史记录', () => {
+    const connections = groupConnections(recent)
+    const original = JSON.stringify(connections)
+    const documents = documentResources(connections, { connectionId: 'a', databases: ['shop', 'new_db'] })
+    expect(documents.map(({ connection, database }) => [connection.connectionId, database])).toEqual([
+      ['a', 'reporting'], ['a', 'shop'], ['a', 'new_db'], ['b', 'shop']
+    ])
+    expect(JSON.stringify(connections)).toBe(original)
+    expect(documentResources([])).toEqual([])
   })
 
   it('当前连接置顶并使用实时上下文名称、类型和数据库', () => {
@@ -114,6 +138,42 @@ describe('document picker cache summaries', () => {
     details: Object.fromEntries(['a', 'b'].map((schema) => [JSON.stringify([schema, 'orders']), {
       savedAt: 150, value: { table: table(schema), columns: [], indexes: [], constraints: [], warnings: [] }
     }])) as OfflineDocument['details'] })
+  it.each(['Connection is not open', 'PLUGIN_DATA_ACCESS_NOT_GRANTED'])('刷新本地列表无需数据库会话或查询权限：%s', async (message) => {
+    const stored = new Map<string, string>([
+      ['dbdoc.recent', JSON.stringify(recent)],
+      [offlineKey({ connectionId: 'a', database: 'shop', dbType: 'mysql' }), JSON.stringify(document())]
+    ])
+    const bridge = {
+      capabilities: { storage: true },
+      storageGet: vi.fn(async (key: string) => stored.get(key) ?? null),
+      storageSet: vi.fn(),
+      queryData: vi.fn().mockRejectedValue(new Error(message)),
+      getTableMetadata: vi.fn().mockRejectedValue(new Error(message))
+    }
+    const snapshot = await loadLocalDocumentList(bridge as unknown as DbxBridge)
+    expect(snapshot.cacheEntries.get(JSON.stringify(['a', 'shop']))).toEqual({ state: 'ready', tableCount: 2, cachedTableCount: 2, lastSyncedAt: 200 })
+    expect(snapshot.cacheEntries.get(JSON.stringify(['b', 'shop']))?.state).toBe('missing')
+    const updated = document(); updated.lastSyncedAt = 500
+    stored.set(offlineKey({ connectionId: 'a', database: 'shop', dbType: 'mysql' }), JSON.stringify(updated))
+    stored.set('dbdoc.recent', JSON.stringify([...recent, { connectionId: 'new', database: 'new_db', name: '新连接', dbType: 'mysql', ts: 100 }]))
+    const refreshed = await loadLocalDocumentList(bridge as unknown as DbxBridge)
+    expect(refreshed.recent.some((entry) => entry.connectionId === 'new')).toBe(true)
+    expect(refreshed.cacheEntries.get(JSON.stringify(['a', 'shop']))?.lastSyncedAt).toBe(500)
+    expect(refreshed.cacheEntries.has(JSON.stringify(['new', 'new_db']))).toBe(true)
+    expect(snapshot.cacheEntries.get(JSON.stringify(['a', 'shop']))?.lastSyncedAt).toBe(200)
+    expect(bridge.queryData).not.toHaveBeenCalled()
+    expect(bridge.getTableMetadata).not.toHaveBeenCalled()
+    expect(bridge.storageSet).not.toHaveBeenCalled()
+  })
+
+  it('本地记录读取失败时报告存储错误，不尝试查询数据库', async () => {
+    const queryData = vi.fn()
+    const error = new Error('storage unavailable')
+    const bridge = { storageGet: vi.fn().mockRejectedValue(error), queryData } as unknown as DbxBridge
+    await expect(loadLocalDocumentList(bridge)).rejects.toBe(error)
+    expect(queryData).not.toHaveBeenCalled()
+  })
+
   it('distinguishes missing, complete and incomplete caches without claiming connection state', () => {
     expect(summarizeDocumentCache(null)).toEqual({ state: 'missing', tableCount: 0, cachedTableCount: 0, lastSyncedAt: null })
     const doc = document()

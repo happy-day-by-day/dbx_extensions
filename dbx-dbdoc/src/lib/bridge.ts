@@ -1,5 +1,7 @@
 // 接口定义已迁至 ./types（Task 3），此处转发导出，调用方 import 路径不变。
 import type { DbxBridge, PluginContext, QueryResult } from './types'
+import { createSnapshotStorage, isSnapshotKey } from './snapshotStorage'
+import { nativeSnapshotDirectory } from './nativeSnapshotDirectory'
 import { cleanConnectionName } from './connectionLabels'
 import { createTableSelectSql, TABLE_QUERY_WORKBENCH_ID } from './tableQuery'
 
@@ -179,7 +181,8 @@ export function getBridge(): DbxBridge | null {
     get dataApi() { return host.capabilities?.dataApi === true },
     get schemaMetadataApi() { return host.capabilities?.schemaMetadataApi === true },
     get storage() { return host.capabilities?.storage === true },
-    get clipboardWrite() { return host.capabilities?.clipboardWrite === true }
+    get clipboardWrite() { return host.capabilities?.clipboardWrite === true },
+    get connectionsApi() { return host.capabilities?.connectionsApi === true }
   }
   // Share the host's four-query budget across metadata loading, search and exports.
   let activeQueries = 0
@@ -195,8 +198,32 @@ export function getBridge(): DbxBridge | null {
   }
   let titleUpdate: Promise<void> = Promise.resolve()
   let titleVersion = 0
+  const directory = nativeSnapshotDirectory(host as any)
+  const snapshots = createSnapshotStorage({ directory, capabilities: { directoryAccess: !!directory }, storage: host.storage } as any)
   const bridge: DbxBridge = {
     capabilities,
+    getSnapshotDirectoryStatus: snapshots.status,
+    onSnapshotDirectoryChange: snapshots.subscribe,
+    configureSnapshotDirectory: snapshots.configure,
+    revokeSnapshotDirectory: snapshots.revoke,
+    getConnections: async () => {
+      if (!capabilities.connectionsApi) throw new Error('当前 DBX 不支持读取连接状态，请升级 DBX 后使用批量生成')
+      let raw: unknown
+      if (typeof host.getConnections === 'function') raw = await host.getConnections()
+      else if (typeof host.connections?.getAll === 'function') raw = await host.connections.getAll()
+      else if (typeof host.listConnections === 'function') raw = await host.listConnections()
+      else if (typeof host.connections?.list === 'function') raw = await host.connections.list()
+      else throw new Error('当前 DBX 未提供连接状态接口，请升级后重试')
+      if (!Array.isArray(raw)) throw new Error('未能读取 DBX 连接状态，请重试')
+      return raw.filter((entry) => entry && typeof entry === 'object').flatMap((entry: AnyRecord) => {
+        const connectionId = pickStr(entry, ['id', 'connectionId'])
+        if (!connectionId) return []
+        return [{ connectionId, name: cleanConnectionName(entry.name, connectionId),
+          dbType: pickStr(entry, ['dbType', 'databaseType', 'dialect']) ?? '',
+          database: pickStr(entry, ['database']),
+          connected: typeof entry.connected === 'boolean' ? entry.connected : entry.isConnected === true }]
+      })
+    },
     getContributionId: () => typeof host.contributionId === 'string' ? host.contributionId : null,
     setWorkbenchTitle: (title) => {
       if (host.capabilities?.workbenchTitle !== true || typeof host.setTitle !== 'function') return Promise.resolve()
@@ -267,12 +294,14 @@ export function getBridge(): DbxBridge | null {
       return { columns: Array.isArray(raw?.columns) ? raw.columns : [] }
     },
     storageGet: async (key) => {
+      if (isSnapshotKey(key)) return snapshots.get(key)
       const storageApi: AnyRecord | undefined = host.storage
       if (!capabilities.storage || !storageApi || typeof storageApi.get !== 'function') return null
       const value = await storageApi.get(key)
       return value == null ? null : typeof value === 'string' ? value : JSON.stringify(value)
     },
     storageSet: async (key, value) => {
+      if (isSnapshotKey(key)) return snapshots.set(key, value)
       const storageApi: AnyRecord | undefined = host.storage
       if (!capabilities.storage || !storageApi || typeof storageApi.set !== 'function') return
       await storageApi.set(key, value)

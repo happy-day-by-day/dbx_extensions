@@ -42,7 +42,7 @@ export async function saveOffline(bridge: DbxBridge, ctx: PluginContext, doc: Of
   if (!bridge.capabilities?.storage) return false
   const key = offlineKey(ctx)
   // Metadata repeats field names heavily. Compress before writing to the host's
-  // 256 KiB per-value / 1 MiB total UI store, rather than losing all but a checkpoint.
+  // persistent document files. Legacy UI-store values remain readable during migration.
   const compressed = gzipSync(strToU8(JSON.stringify(doc)))
   let binary = ''
   for (let i = 0; i < compressed.length; i += 8192) binary += String.fromCharCode(...compressed.subarray(i, i + 8192))

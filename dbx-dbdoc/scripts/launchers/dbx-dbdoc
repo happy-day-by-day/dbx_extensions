@@ -1,0 +1,22 @@
+#!/bin/sh
+set -eu
+base=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+case "$(uname -s)" in
+  Darwin) system=darwin ;;
+  Linux) system=linux ;;
+  *) printf '%s\n' 'DBX document snapshots: unsupported operating system' >&2; exit 126 ;;
+esac
+case "$(uname -m)" in
+  arm64|aarch64) arch=arm64 ;;
+  x86_64|amd64) arch=x64 ;;
+  *) printf '%s\n' 'DBX document snapshots: unsupported CPU architecture' >&2; exit 126 ;;
+esac
+program="$base/$system-$arch/dbx-dbdoc"
+if [ ! -f "$program" ]; then
+  printf '%s\n' 'DBX document snapshot backend is missing; reinstall the complete plugin package' >&2
+  exit 127
+fi
+# Some unzip implementations discard executable bits. Repair only our bundled
+# backend; exec preserves JSONL stdin/stdout and the host process lifecycle.
+if [ ! -x "$program" ]; then chmod u+x "$program"; fi
+exec "$program"

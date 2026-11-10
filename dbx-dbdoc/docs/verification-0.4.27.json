@@ -1,0 +1,128 @@
+{
+  "version": "0.4.27",
+  "date": "2026-11-09",
+  "plugin": {
+    "tests": {
+      "files": 25,
+      "passed": 282
+    },
+    "svelteCheck": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "build": true,
+    "package": {
+      "target": "universal",
+      "version": "0.4.27",
+      "sha256": "195efd7dd8c5fe33ccafbf40ef1df919675e8d318dcb718ff7cce723a9241be4",
+      "size": 96067,
+      "checksumsVerified": 5,
+      "frontendAndAssetsMatch": true,
+      "manifestSemanticMatch": true,
+      "hostApi": "^1.5",
+      "nativeExecutable": false,
+      "signed": false
+    }
+  },
+  "host": {
+    "baseCommit": "28a60d061b1b063d192da9935c08e06b81ce8be5",
+    "sourcePath": "/Users/sazs/code/github/dbx",
+    "branch": "codex/persistent-directory-access",
+    "stack": {
+      "host": "Tauri 2 / Rust",
+      "frontend": "Vue 3 / TypeScript",
+      "macOSAppSandbox": false
+    },
+    "apiVersion": "1.5.0",
+    "patchSha256": "175a7e33a80258b8120d324d5ef98f8187235701c6e94b15c32e50286d74a95c",
+    "patchBytes": 82983,
+    "patchAppliesToCleanBase": true,
+    "patchReverseMatchesWorkingTree": true,
+    "directoryCoreTests": 12,
+    "manifestTests": 55,
+    "frontendTests": {
+      "files": 4,
+      "passed": 277
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "NODE_OPTIONS=--max-old-space-size=8192 pnpm typecheck"
+    },
+    "nativeCompile": {
+      "passed": true,
+      "command": "cargo check -p dbx --no-default-features",
+      "unrelatedExistingWarnings": 2
+    },
+    "directoryCoreCrossChecks": [
+      "x86_64-pc-windows-gnu",
+      "x86_64-unknown-linux-gnu"
+    ],
+    "limitations": [
+      "Native directory-picker UI was not exercised; browser integration supplied a picker result through a test-only Rust protocol adapter.",
+      "Windows/Linux directory core passed cross-compilation checks but was not executed on those platforms.",
+      "No host installer was built, installed, published or substituted for the current application.",
+      "OS-sandbox distributions require persistent bookmark/token/portal adapters before enabling this capability."
+    ]
+  },
+  "realRustDirectoryIntegration": {
+    "passed": true,
+    "realRustDirectoryService": true,
+    "files": [
+      {
+        "name": "dbdoc-62b7f7bd3baf5af6ed7e94232c103a7255148b639057288736ce51efec43d0f3.json",
+        "size": 351
+      },
+      {
+        "name": "dbdoc-c04c2229b2432ce57d9093a7ac3dfca6b3d4fc45f868133c6b7bac899f074016.json",
+        "size": 2205761
+      },
+      {
+        "name": "dbdoc-c071ca1076344f6327a13de663d2ae6f4de242a720ef2fd1b54783dedce852b9.json",
+        "size": 2205756
+      }
+    ],
+    "scenarios": [
+      "configure once",
+      "2 snapshots each over 1 MiB",
+      "local list refresh no SQL",
+      "reload with persistent grant no SQL",
+      "open cached database no SQL",
+      "failed commit preserves all files byte for byte"
+    ],
+    "errors": []
+  },
+  "restartAndOffline": {
+    "passed": true,
+    "realRustProcessRestart": true,
+    "lostUiPreferencesRecovered": true,
+    "pickerCalls": 0,
+    "queries": 0,
+    "markdownBytes": 4272092,
+    "scenarios": [
+      "restore real files after host restart",
+      "field name and comment search from cache",
+      "whole database Markdown export from cache",
+      "720px modal and escape focus"
+    ],
+    "errors": []
+  },
+  "revokeAndReauthorize": {
+    "passed": true,
+    "scenarios": [
+      "real host revocation persists after reload without UI preferences",
+      "never falls back to an older grant",
+      "reauthorization restores original files with no SQL or file changes"
+    ]
+  },
+  "failureCoverage": [
+    "Interrupted writes and checksum failures preserve prior committed file (Rust core).",
+    "Revoke/changed identity/unavailable root deny access without recreating the root.",
+    "Read-only and cross-plugin handle access denied.",
+    "Traversal and symlink escape denied.",
+    "Failed preference persistence and interrupted directory switch retain the previous selected directory.",
+    "Full UI storage and missing UI preferences still restore the host-selected directory.",
+    "Browser-injected commit failure preserves every snapshot byte and successful sync timestamp.",
+    "Conflicting writes fail without replacing the existing file.",
+    "Legacy UI/native cache migration leaves original copies intact."
+  ]
+}

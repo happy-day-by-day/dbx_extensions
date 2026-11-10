@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "hotUpdates": 20,
+  "versions": [
+    "0.4.28",
+    "0.4.29"
+  ],
+  "realHostInstallerAndRuntime": true,
+  "uiHostDriven": false,
+  "sqliteMultiProcess": true,
+  "sqliteIntegrity": "ok",
+  "sharedMemoryInodeUnchanged": true,
+  "snapshotPreserved": true,
+  "isolatedTemporaryDataOnly": true,
+  "sqliteReaderSuccessfulQueries": 11319,
+  "hostSourceBaseCommit": "28a60d061b1b063d192da9935c08e06b81ce8be5",
+  "hostSourceNote": "Uses the local DBX installer/runtime sources; the checkout also contains earlier directory API changes. This is not an execution of the installed GUI application.",
+  "platform": "macOS arm64",
+  "crashReproduced": false
+}

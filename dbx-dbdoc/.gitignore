@@ -1,3 +1,5 @@
 node_modules/
 /ui/
 /dist/
+/bin/
+/tooling/dbx-plugin-packager/target/
