@@ -5,8 +5,9 @@
   import type { TableDetail } from '../../lib/markdown'
   import Detail from './Detail.svelte'
 
-  let { state: parent, table, sourceVersion, dense, ondensitychange, load, onsql, onexport, onrefresh, onreferenced }: {
+  let { state: parent, table, current = false, sourceVersion, dense, ondensitychange, load, onsql, onexport, onrefresh, onreferenced }: {
     state: AppState; table: DbTable; sourceVersion: number; dense: boolean
+    current?: boolean
     ondensitychange: (dense: boolean) => void
     load: (table: DbTable) => Promise<TableDetail>
     onsql: (state: AppState) => void; onexport: (state: AppState) => void
@@ -54,7 +55,7 @@
   })
 </script>
 
-<div class="multi-table-item" bind:this={container} data-table={JSON.stringify([table.table_schema, table.table_name])}>
+<div class="multi-table-item" class:current bind:this={container} data-table={JSON.stringify([table.table_schema, table.table_name])} aria-current={current ? 'true' : undefined}>
   {#if visible}
     <Detail state={item} {dense} {ondensitychange} embedded {instanceId} {onreferenced}
       onsql={() => onsql(item)} onexport={() => onexport(item)} onretry={() => parent.offline ? onrefresh() : retry += 1} />
@@ -64,7 +65,8 @@
 </div>
 
 <style>
-  .multi-table-item { flex: none; min-width: 0; scroll-margin-top: 0; border-bottom: 1px solid var(--border); }
+  .multi-table-item { flex: none; min-width: 0; scroll-margin-top: 10px; border: 1px solid var(--border); border-top: 2px solid color-mix(in srgb, var(--muted) 35%, var(--border)); border-radius: 6px; background: var(--panel); }
+  .multi-table-item.current { border-top-color: var(--accent); }
   .placeholder { min-height: 120px; padding: 12px; display: flex; flex-direction: column; gap: 10px; color: var(--muted); font-size: 12px; }
   .placeholder strong { font-family: var(--mono); overflow-wrap: anywhere; }
 </style>

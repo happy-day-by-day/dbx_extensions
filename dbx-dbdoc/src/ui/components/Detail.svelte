@@ -236,6 +236,7 @@
 <style>
   .detail { display: flex; flex-direction: column; position: relative; min-height: 0; overflow: hidden; background: var(--panel); }
   .detail.embedded { overflow: visible; flex: none; min-width: 0; }
+  .embedded .detail-header { border-radius: 5px 5px 0 0; background: color-mix(in srgb, var(--accent-weak) 35%, var(--panel)); border-bottom: 1px solid var(--border-weak); }
   .embedded .detail-body, .embedded .detail-body.fields-content { flex: none; overflow: visible; }
   .embedded .table-scroll { flex: none; overflow-x: auto; }
   .detail-controls { flex: none; }

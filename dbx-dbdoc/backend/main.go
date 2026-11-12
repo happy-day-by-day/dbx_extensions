@@ -8,7 +8,7 @@ import (
 	sdk "github.com/t8y2/dbx/plugins/sdk/go/dbx-plugin-sdk"
 )
 
-const pluginVersion = "0.4.38"
+const pluginVersion = "0.4.39"
 
 func main() {
 	dir, err := sdk.EnsureDataDir()

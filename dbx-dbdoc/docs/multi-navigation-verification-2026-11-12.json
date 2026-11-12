@@ -1,0 +1,69 @@
+{
+  "version": "0.4.39",
+  "date": "2026-11-12",
+  "environment": "Headless local Chrome with cached PostgreSQL fixture and closed connection; no real database",
+  "passed": true,
+  "checks": [
+    "distinct card border, tinted heading and 10–12px separation in light/dark",
+    "navigation stays within 36px",
+    "ordered schema-aware dropdown",
+    "previous/next boundary states",
+    "dropdown scrolls to selected table",
+    "selection unchanged by navigation and filters",
+    "sorting updates navigation order",
+    "deselect current keeps valid position",
+    "empty selection hides navigation",
+    "distant lazy table loads after jump",
+    "successive jumps honor latest target",
+    "manual scrolling updates current position",
+    "reduced-motion and keyboard navigation",
+    "four viewport widths without page overflow",
+    "foreign key adds table and updates jump target"
+  ],
+  "visuals": [
+    {
+      "theme": "light",
+      "gap": 12,
+      "border": "rgb(53, 114, 240)",
+      "body": "rgb(255, 255, 255)",
+      "header": "color(srgb 0.959525 0.971747 0.996994 / 0.685)",
+      "navHeight": 34
+    },
+    {
+      "theme": "dark",
+      "gap": 12,
+      "border": "rgb(91, 155, 248)",
+      "body": "rgb(23, 28, 34)",
+      "header": "color(srgb 0.111348 0.149308 0.1999 / 0.706)",
+      "navHeight": 34
+    }
+  ],
+  "queries": 0,
+  "pageErrors": [],
+  "existingMultiTableRegression": {
+    "passed": true,
+    "checks": [
+      "directory ordering",
+      "cross-schema identity",
+      "independent tabs and search",
+      "correct per-table SQL/export",
+      "selection preserved through filters",
+      "row click and keyboard Enter/Space toggle exactly once",
+      "arrow keys focus correct row",
+      "no catalog checkboxes",
+      "light/dark color selection",
+      "unique tab IDs",
+      "lazy rendering",
+      "isolated missing cache",
+      "no overlap",
+      "four viewport widths",
+      "single-table restoration",
+      "density retained",
+      "foreign key adds and locates referenced table",
+      "explicit host table action",
+      "resource switch clears mode"
+    ],
+    "queries": 0,
+    "pageErrors": []
+  }
+}
