@@ -38,6 +38,16 @@ export async function loadOffline(bridge: DbxBridge, ctx: PluginContext): Promis
 
 // Serialize writes so a slow older save cannot overwrite a newer table snapshot.
 const writes = new WeakMap<DbxBridge, Promise<void>>()
+function queueWrite(bridge: DbxBridge, action: () => Promise<void>): Promise<void> {
+  const pending = (writes.get(bridge) ?? Promise.resolve()).catch(() => undefined).then(action)
+  writes.set(bridge, pending)
+  return pending.finally(() => { if (writes.get(bridge) === pending) writes.delete(bridge) })
+}
+export async function clearOffline(bridge: DbxBridge, ctx: PluginContext): Promise<void> {
+  if (!ctx.connectionId || !ctx.database || !ctx.dbType) throw new Error('缺少数据库或连接信息，无法清除缓存')
+  if (!bridge.storageDelete) throw new Error('当前插件不支持清除缓存，请更新插件后重试')
+  await queueWrite(bridge, () => bridge.storageDelete!(offlineKey(ctx)))
+}
 export async function saveOffline(bridge: DbxBridge, ctx: PluginContext, doc: OfflineDocument, onError?: (message: string) => void): Promise<boolean> {
   if (!bridge.capabilities?.storage) return false
   const key = offlineKey(ctx)
@@ -47,13 +57,11 @@ export async function saveOffline(bridge: DbxBridge, ctx: PluginContext, doc: Of
   let binary = ''
   for (let i = 0; i < compressed.length; i += 8192) binary += String.fromCharCode(...compressed.subarray(i, i + 8192))
   const raw = JSON.stringify({ encoding: 'gzip-base64', data: btoa(binary) })
-  const pending = (writes.get(bridge) ?? Promise.resolve()).catch(() => undefined).then(() => bridge.storageSet(key, raw))
-  writes.set(bridge, pending)
+  const pending = queueWrite(bridge, () => bridge.storageSet(key, raw))
   try { await pending; return true } catch (err) {
     onError?.(err instanceof Error ? err.message : String(err))
     return false
   }
-  finally { if (writes.get(bridge) === pending) writes.delete(bridge) }
 }
 
 export function withOfflineDetail(doc: OfflineDocument, detail: TableDetail): OfflineDocument {

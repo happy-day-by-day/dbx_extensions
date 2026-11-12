@@ -51,6 +51,7 @@ export interface DbxBridge {
   getTableMetadata(req: { connectionId: string; database?: string; schema?: string; table: string }): Promise<{ columns: { name: string; dataType: string; nullable: boolean; length?: number; precision?: number; scale?: number; default?: string }[] }>
   storageGet(key: string): Promise<string | null>
   storageSet(key: string, value: string): Promise<void>
+  storageDelete?(key: string): Promise<void>
   saveFile(defaultName: string, content: string): Promise<'saved' | 'cancelled' | 'unsupported' | 'failed'>
   copyText(text: string): Promise<boolean>
 }

@@ -1,0 +1,16 @@
+{
+  "version": "0.4.36",
+  "passed": true,
+  "environment": "Chrome headless + 模拟DBX宿主 + 包内darwin-arm64快照后端",
+  "actualDatabaseConnectionTested": false,
+  "desktopRowHeight": 46,
+  "checks": [
+    "窄屏无页面横向溢出、确认显示精确连接及库名、默认聚焦取消、Escape取消不更改文件",
+    "原子提交失败保留文档文件及同步时间，弹窗显示失败原因",
+    "有缓存筛选即时移除已清除库并恢复焦点，全部列表保留记录且移除同步时间，同名其他连接和同连接其他库文件完全不变",
+    "清除当前打开文档后返回立即清空表和详情并禁用导出，全程0条数据库查询",
+    "后端和页面完全重启后已清除库不从重新注入的旧UI缓存复活，未清除库正常恢复，浏览器无运行时异常"
+  ],
+  "databaseQueries": 0,
+  "pageErrors": []
+}

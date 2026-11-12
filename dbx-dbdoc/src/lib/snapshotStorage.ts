@@ -26,7 +26,7 @@ const CHUNK = 512 * 1024
 const rawString = (value: unknown) => value == null ? null : typeof value === 'string' ? value : JSON.stringify(value)
 export const isSnapshotKey = (key: string) => key === 'dbdoc.recent' || key.startsWith(PREFIX)
 export const snapshotFileName = async (key: string) => `dbdoc-${await sha256(new TextEncoder().encode(key))}.json`
-interface Envelope { format: 'dbx-dbdoc-snapshot'; version: 1; key: string; value: string }
+interface Envelope { format: 'dbx-dbdoc-snapshot'; version: 1; key: string; value: string; deleted?: true }
 
 export function createSnapshotStorage(host: Host) {
   let state: SnapshotDirectoryStatus = { status: 'unconfigured', grant: null, error: '' }
@@ -109,10 +109,12 @@ export function createSnapshotStorage(host: Host) {
   function unpack(raw: string, key?: string): Envelope {
     const envelope = JSON.parse(raw)
     if (envelope?.format !== 'dbx-dbdoc-snapshot' || envelope.version !== 1 || typeof envelope.key !== 'string'
-      || !isSnapshotKey(envelope.key) || typeof envelope.value !== 'string' || (key && envelope.key !== key)) throw new Error('快照格式或身份不匹配，原文件已保留')
+      || !isSnapshotKey(envelope.key) || typeof envelope.value !== 'string' || (key && envelope.key !== key)
+      || (envelope.deleted !== undefined && (envelope.deleted !== true || !envelope.key.startsWith(PREFIX) || envelope.value !== ''))) throw new Error('快照格式或身份不匹配，原文件已保留')
     return envelope
   }
   const wrap = (key: string, value: string) => JSON.stringify({ format: 'dbx-dbdoc-snapshot', version: 1, key, value } satisfies Envelope)
+  const valueOf = (envelope: Envelope) => envelope.deleted ? null : envelope.value
   async function names(grant: string, includeLegacy = false) {
     const names: string[] = [], seen = new Set<string>(); let cursor: string | undefined
     do {
@@ -148,11 +150,17 @@ export function createSnapshotStorage(host: Host) {
   async function get(key: string): Promise<string | null> {
     await restore()
     const legacy = () => host.storage?.get?.(key).then(rawString) ?? Promise.resolve(null)
-    if (state.status !== 'ready' || !state.grant) return legacy()
+    // A configured directory is authoritative, including deletion markers.
+    // If it is unavailable, a legacy UI copy may predate a successful clear.
+    if (state.status !== 'ready' || !state.grant) return selected && key.startsWith(PREFIX) ? null : legacy()
     const grant = state.grant.id, path = await snapshotFileName(key)
     try {
       let raw = await readFile(grant, path)
-      let value = raw ? unpack(raw, key).value : null
+      const envelope = raw ? unpack(raw, key) : null
+      // A durable deletion marker prevents old UI/native caches from being
+      // imported again after restart, even if legacy cleanup was interrupted.
+      if (envelope?.deleted) return null
+      let value = envelope ? envelope.value : null
       if (value === null) {
         // Compatibility with the previous native cache: selecting its
         // documents-v2 directory recovers .cache files without a Go backend.
@@ -160,7 +168,7 @@ export function createSnapshotStorage(host: Host) {
         if (value !== null) {
           try { await writeFile(grant, path, wrap(key, value), null) }
           catch (error) {
-            if (String(error).includes('[CONFLICT]')) { raw = await readFile(grant, path); if (raw) value = unpack(raw, key).value }
+            if (String(error).includes('[CONFLICT]')) { raw = await readFile(grant, path); if (raw) value = valueOf(unpack(raw, key)) }
             // Retain the legacy value when a migration cannot be committed.
           }
         }
@@ -175,6 +183,18 @@ export function createSnapshotStorage(host: Host) {
       try {
         const { etag } = await available().stat(grant, path)
         await writeFile(grant, path, wrap(key, value), etag)
+        publish({ ...state, error: '' })
+      } catch (error) { reportError(error); throw error }
+    }),
+    delete: (key: string) => serial(async () => {
+      if (!key.startsWith(PREFIX)) throw new Error('只能清除指定数据库的文档缓存')
+      const grant = await requireGrant(), path = await snapshotFileName(key)
+      try {
+        const { etag } = await available().stat(grant, path)
+        // Atomic replacement releases the document payload and keeps a tiny
+        // marker. Failed writes and concurrent changes retain the prior file.
+        await writeFile(grant, path, JSON.stringify({ format: 'dbx-dbdoc-snapshot', version: 1, key, value: '', deleted: true } satisfies Envelope), etag)
+        try { await host.storage?.delete?.(key) } catch { /* durable deletion is already committed */ }
         publish({ ...state, error: '' })
       } catch (error) { reportError(error); throw error }
     }),

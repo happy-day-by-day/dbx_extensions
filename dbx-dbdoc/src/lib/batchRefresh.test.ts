@@ -41,6 +41,29 @@ beforeEach(() => {
 })
 
 describe('批量生成离线文档', () => {
+  it('排除腾讯云回收站和系统库，后续页业务库仍生成且不修改回收站旧缓存', async () => {
+    const { api, bridge, storage, setConnections } = mockBridge()
+    const recycle = { ...target, name: '海南 / 全部库-TEST', database: '__cdb_recycle_bin__' }
+    const recycleKey = offlineKey(recycle)
+    storage.set(recycleKey, JSON.stringify(oldDocument))
+    setConnections([{ ...recycle, connected: true, dbType: 'MariaDB' }])
+    api.queryData.mockResolvedValueOnce({
+      dbType: 'mysql', columns: [{ name: 'database_name', dataType: 'varchar' }],
+      rows: [['__cdb_recycle_bin__'], ['__CDB_RECYCLE_BIN__'], ['mysql']], truncated: true
+    } as never).mockResolvedValueOnce({
+      dbType: 'mysql', columns: [{ name: 'database_name', dataType: 'varchar' }],
+      rows: [['shop'], ['__cdb_recycle_bin___backup']], truncated: false
+    } as never)
+    const issues: BatchDiscoveryIssue[] = []
+    const found = await discoverBatchTargets(bridge, [], { onIssue: issue => issues.push(issue) })
+    expect(found.map(item => item.database)).toEqual(['shop', '__cdb_recycle_bin___backup'])
+    expect(issues).toEqual([])
+    expect(api.queryData).toHaveBeenLastCalledWith(expect.objectContaining({ sql: expect.stringContaining('OFFSET 3') }))
+    api.queryData.mockClear()
+    expect((await refreshBatch(bridge, [recycle, ...found], options())).map(item => item.state)).toEqual(['skipped', 'success', 'success'])
+    expect(api.queryData.mock.calls.every(([request]) => request.database !== recycle.database)).toBe(true)
+    expect(storage.get(recycleKey)).toBe(JSON.stringify(oldDocument))
+  })
   it('枚举已连接连接下从未缓存过的数据库，去重且不混淆跨连接同名库', async () => {
     const { api, bridge, setConnections } = mockBridge()
     api.queryData.mockResolvedValue({ dbType: 'mysql', columns: [{ name: 'database_name', dataType: 'varchar' }], rows: [['new_db'], ['shop']], truncated: false } as never)

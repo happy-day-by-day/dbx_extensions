@@ -7,6 +7,7 @@ export interface DialectAdapter {
   countTableColumns(ref: TableRef): string
   // 连接未指定默认库时枚举可选库（postgres 跨库路由不可行，不实现）
   listDatabases?(ref: TableRef): string
+  isSystemDatabase?(name: string): boolean
   listColumns(ref: TableRef, table: string): string
   listIndexes(ref: TableRef, table: string): string
   listIndexesLegacy?(ref: TableRef, table: string): string

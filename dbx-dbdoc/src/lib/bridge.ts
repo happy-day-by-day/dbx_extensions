@@ -306,6 +306,12 @@ export function getBridge(): DbxBridge | null {
       if (!capabilities.storage || !storageApi || typeof storageApi.set !== 'function') return
       await storageApi.set(key, value)
     },
+    storageDelete: async (key) => {
+      if (isSnapshotKey(key)) return snapshots.delete(key)
+      const storageApi: AnyRecord | undefined = host.storage
+      if (!storageApi || typeof storageApi.delete !== 'function') throw new Error('当前 DBX 不支持清除本地设置')
+      await storageApi.delete(key)
+    },
     saveFile: async (defaultName, content) => {
       const ft: AnyRecord | undefined = host.fileTransfer
       let handleId: string | undefined

@@ -1,0 +1,15 @@
+{
+  "version": "0.4.38",
+  "passed": true,
+  "environment": "Chrome headless + 模拟DBX宿主 + 包内darwin-arm64快照后端",
+  "actualDatabaseConnectionTested": false,
+  "databaseQueries": 0,
+  "pageErrors": [],
+  "checks": [
+    "无缓存但仍在历史记录的回收站库和大小写变体不再显示",
+    "连续刷新、搜索及重启页面和后端后均保持过滤",
+    "保留无缓存的普通业务库和相似名称的已缓存业务库，筛选计数准确",
+    "原有删除标记文件完全不变，刷新列表0条数据库查询",
+    "桌面和390px窄屏无横向溢出"
+  ]
+}

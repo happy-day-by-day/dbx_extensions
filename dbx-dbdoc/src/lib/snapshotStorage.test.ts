@@ -54,6 +54,58 @@ function fixture() {
   return { host, grants, files, legacy, handles, directory }
 }
 describe('authorized snapshot directories', () => {
+  it('atomically clears one document and prevents legacy resurrection after restart or directory migration', async () => {
+    const f = fixture(), s = createSnapshotStorage(f.host); await s.configure()
+    const other = 'dbdoc.offline.v1.["other","health","mysql"]'
+    await s.set(key, 'large document'.repeat(1000)); await s.set(other, 'other complete')
+    await s.set('dbdoc.recent', '[{"connectionId":"connection","database":"health","dbType":"mysql","ts":1}]')
+    f.legacy.set(key, 'old UI')
+    f.files.get('grant-0')!.set(`${await sha256(encoder.encode(key))}.cache`, 'old native')
+    // The durable marker remains authoritative even if UI cleanup fails.
+    f.host.storage.delete.mockImplementationOnce(() => { throw new Error('UI unavailable') })
+    await s.delete(key)
+    const cleared = f.files.get('grant-0')!.get(await snapshotFileName(key))!
+    expect(cleared.length).toBeLessThan(250)
+    expect(JSON.parse(cleared)).toMatchObject({ deleted: true, value: '' })
+    const restarted = createSnapshotStorage(f.host)
+    expect(await restarted.get(key)).toBeNull()
+    expect(await restarted.get(other)).toBe('other complete')
+    expect(JSON.parse((await restarted.get('dbdoc.recent'))!)).toContainEqual(expect.objectContaining({ connectionId: 'connection', database: 'health' }))
+    await restarted.configure('/new')
+    expect(await createSnapshotStorage(f.host).get(key)).toBeNull()
+    await restarted.set(key, 'fresh complete')
+    expect(await createSnapshotStorage(f.host).get(key)).toBe('fresh complete')
+  })
+  it.each(['write', 'commit'] as const)('retains the full original file and legacy copy when clearing fails at %s', async method => {
+    const f = fixture(), s = createSnapshotStorage(f.host); await s.configure(); await s.set(key, 'full document and time')
+    f.legacy.set(key, 'legacy')
+    const old = f.files.get('grant-0')!.get(await snapshotFileName(key))
+    f.directory[method].mockRejectedValueOnce(new Error('[DISK_FULL] full'))
+    await expect(s.delete(key)).rejects.toThrow('DISK_FULL')
+    expect(f.files.get('grant-0')!.get(await snapshotFileName(key))).toBe(old)
+    expect(await s.get(key)).toBe('full document and time')
+    expect(f.legacy.get(key)).toBe('legacy')
+    expect(f.handles.size).toBe(0)
+  })
+  it('does not clear a file changed by another workbench during commit', async () => {
+    const f = fixture(), s = createSnapshotStorage(f.host); await s.configure(); await s.set(key, 'old')
+    const other = createSnapshotStorage(f.host), commit = f.directory.commit.getMockImplementation()!
+    f.directory.commit.mockImplementationOnce(async (...args) => { await other.set(key, 'new complete and time'); return commit(...args) })
+    await expect(s.delete(key)).rejects.toThrow('CONFLICT')
+    expect(await s.get(key)).toBe('new complete and time')
+  })
+  it('requires a usable directory for clearing and never clears the entrance list', async () => {
+    const f = fixture(), s = createSnapshotStorage(f.host)
+    f.legacy.set(key, 'old UI')
+    await expect(s.delete(key)).rejects.toThrow('配置快照目录')
+    await s.configure(); await s.delete(key)
+    f.legacy.set(key, 'stale UI'); f.grants[0].status = 'unavailable'
+    const restarted = createSnapshotStorage(f.host)
+    expect(await restarted.get(key)).toBeNull()
+    await expect(restarted.delete(key)).rejects.toThrow('原快照已保留')
+    await expect(s.delete('dbdoc.recent')).rejects.toThrow('只能清除')
+    expect(f.directory.request).toHaveBeenCalledTimes(1)
+  })
   it('asks only on configuration and never writes snapshots into UI storage', async () => {
     const f = fixture(), s = createSnapshotStorage(f.host)
     await expect(s.set(key, 'doc')).rejects.toThrow('配置快照目录'); expect(f.directory.request).not.toHaveBeenCalled()

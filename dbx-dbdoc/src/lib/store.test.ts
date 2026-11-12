@@ -287,6 +287,15 @@ describe('runConcurrentQueue', () => {
 })
 
 describe('listDatabases', () => {
+  it('宿主返回未过滤的目录时仍排除系统回收站，保留相似业务库', async () => {
+    const bridge = mkBridge()
+    bridge.queryData = vi.fn().mockResolvedValue({
+      columns: [{ name: 'database_name' }],
+      rows: [['__cdb_recycle_bin__'], ['__CDB_RECYCLE_BIN__'], ['sys'], ['__cdb_recycle_bin___backup'], ['shop']],
+      truncated: false
+    })
+    expect(await listDatabases(bridge, adapter, 'c1', ref)).toEqual(['__cdb_recycle_bin___backup', 'shop'])
+  })
   it('mysql 返回枚举的库名', async () => {
     const bridge = mkBridge()
     const dbs = await listDatabases(bridge, adapter, 'c1', ref)

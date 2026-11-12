@@ -2,8 +2,8 @@
   import { onMount, onDestroy } from 'svelte'
   import type { RecentConnection } from '../../lib/recent'
   import { cleanConnectionName } from '../../lib/connectionLabels'
-  import { groupConnections, documentResources, loadLocalDocumentList, type DocumentCacheSummary, type DocumentResource, type ResourceConnection } from '../../lib/resources'
-  import { getAdapter } from '../../lib/dialects/registry'
+  import { groupConnections, documentResources, loadLocalDocumentList, summarizeDocumentCache, type DocumentCacheSummary, type DocumentResource, type ResourceConnection } from '../../lib/resources'
+  import { getAdapter, normalizeDbType } from '../../lib/dialects/registry'
   import { maskUuids } from '../../lib/display/masking'
   import { getBridge } from '../../lib/bridge'
   import type { PluginContext } from '../../lib/types'
@@ -11,13 +11,20 @@
   import Icon from './Icon.svelte'
   import SnapshotDirectoryButton from './SnapshotDirectoryButton.svelte'
   import BatchRefreshDialog from './BatchRefreshDialog.svelte'
+  import ClearCacheDialog from './ClearCacheDialog.svelte'
   import type { BatchTarget } from '../../lib/batchRefresh'
 
-  let { onsnapshot, snapshotChanged = 0, context = {}, diagnostics = null, onopen, onclose, oncacheupdated, syncBlocked = false, returnLabel = '返回文档' }:
+  let { onsnapshot, snapshotChanged = 0, context = {}, diagnostics = null, onopen, onclose, oncacheupdated, oncachecleared, syncBlocked = false, returnLabel = '返回文档' }:
     { onsnapshot?: () => void; snapshotChanged?: number; context?: PluginContext; diagnostics?: string | null;
-      onopen: (context: PluginContext) => void; onclose?: () => void; oncacheupdated?: (target: BatchTarget) => void; syncBlocked?: boolean; returnLabel?: string } = $props()
+      onopen: (context: PluginContext) => void; onclose?: () => void; oncacheupdated?: (target: BatchTarget) => void; oncachecleared?: (context: PluginContext) => void; syncBlocked?: boolean; returnLabel?: string } = $props()
 
   let batchOpen = $state(false)
+  let clearTarget = $state<DocumentResource | null>(null)
+  let searchInput = $state<HTMLInputElement>()
+  const clearContext = $derived<PluginContext>(clearTarget ? {
+    connectionId: clearTarget.connection.connectionId, database: clearTarget.database,
+    dbType: normalizeDbType(clearTarget.connection.dbType), name: clearTarget.connection.name
+  } : {})
   let recent = $state<RecentConnection[]>([])
   let loading = $state(true)
   let databaseQuery = $state('')
@@ -124,6 +131,20 @@
   function cacheUpdated(target: BatchTarget) {
     oncacheupdated?.(target)
   }
+  function cacheCleared() {
+    if (!clearTarget) return
+    // Invalidate pending list reads before updating local counts and sort keys.
+    request += 1
+    databaseLoading = false
+    cacheEntries = new Map(cacheEntries).set(clearTarget.key, summarizeDocumentCache(null))
+    oncachecleared?.(clearContext)
+  }
+  function closeClear() {
+    clearTarget = null
+    queueMicrotask(() => {
+      if (!document.activeElement || document.activeElement === document.body) searchInput?.focus()
+    })
+  }
   async function openBatch() {
     const location = await getBridge()?.getSnapshotDirectoryStatus?.()
     if (location && location.status !== 'ready' && onsnapshot) { onsnapshot(); return }
@@ -135,11 +156,11 @@
 </script>
 
 <svelte:window onkeydown={(event) => {
-  if (batchOpen || event.key !== 'Escape') return
+  if (batchOpen || clearTarget || event.key !== 'Escape') return
   if (onclose) { event.preventDefault(); onclose() }
 }} />
 
-<section class="switcher" inert={batchOpen} role={onclose ? 'dialog' : 'region'} aria-modal={onclose ? true : undefined} aria-label="选择连接与数据库" use:focusPicker>
+<section class="switcher" inert={batchOpen || clearTarget !== null} role={onclose ? 'dialog' : 'region'} aria-modal={onclose ? true : undefined} aria-label="选择连接与数据库" use:focusPicker>
   <header class="switcher-topbar">
     <div class="switcher-brand"><span class="brand-icon"><Icon name="database" size={18} /></span><strong>数据库文档</strong><span class="topbar-separator">/</span><span>切换文档</span></div>
     <div class="topbar-actions">{#if onsnapshot}<SnapshotDirectoryButton onclick={onsnapshot} disabled={syncBlocked || batchOpen} />{/if}<button class="btn batch-trigger" disabled={syncBlocked || databaseLoading || openingDatabase !== null} title={syncBlocked ? '请等待当前文档同步完成' : '读取已连接连接下的数据库列表并批量生成整库文档'} onclick={() => void openBatch()}><Icon name="refresh" size={14} />批量生成文档</button>
@@ -158,7 +179,7 @@
         <div class="documents-toolbar">
           <div class="document-tabs" role="group" aria-label="文档筛选"><button class:chosen={!cachedOnly} aria-pressed={!cachedOnly} onclick={() => cachedOnly = false}>全部数据库<span>{documents.length}</span></button><button class:chosen={cachedOnly} aria-pressed={cachedOnly} onclick={() => cachedOnly = true}>有本地缓存<span>{cachedCount}</span></button></div>
           <div class="list-controls">
-            <div class="search-field database-search"><Icon name="search" size={15} /><input type="search" aria-label="搜索数据库" placeholder="搜索数据库或连接名称" bind:value={databaseQuery} /></div>
+            <div class="search-field database-search"><Icon name="search" size={15} /><input type="search" aria-label="搜索数据库" placeholder="搜索数据库或连接名称" bind:value={databaseQuery} bind:this={searchInput} /></div>
             <select class="mobile-sort" aria-label="文档本地排序" bind:value={sortOrder}>
               <option value="default">默认顺序</option>
               <option value="database-asc">数据库 ↑</option><option value="database-desc">数据库 ↓</option>
@@ -181,6 +202,7 @@
             {@const connectionLabel = connectionNameOf(document.connection)}
             {@const current = document.connection.connectionId === context.connectionId && database === context.database}
             {@const cached = cacheEntries.get(document.key)}
+            <div class="document-entry" class:current={current}>
             <button class="document-row" class:current={current} disabled={openingDatabase !== null}
               aria-label={`打开数据库 ${database}，连接 ${connectionLabel}`} aria-current={current ? 'page' : undefined} onclick={() => void open(database, document.connection.connectionId)}>
               <span class="document-identity"><span class="database-icon"><Icon name="database" size={18} /></span><span class="database-name"><span><strong title={database}>{database}</strong>{#if current}<small class="current-tag">当前文档</small>{/if}</span>{#if cached && cached.state !== 'missing'}<small>{cached.state === 'partial' ? `${cached.cachedTableCount} / ${cached.tableCount} 张表已缓存` : `${cached.tableCount} 张表`}</small>{:else}<small>{cached?.state === 'missing' ? '打开后可手动刷新，创建本地文档' : '读取缓存信息，不访问数据库'}</small>{/if}<small class="mobile-connection">连接：{connectionLabel}</small></span></span>
@@ -189,6 +211,8 @@
               <span class="sync-date date-column">{cached && cached.state !== 'missing' ? formatTime(cached.lastSyncedAt) : '—'}</span>
               <span class="row-action">{#if openingDatabase === document.key}<span class="spinner"></span>{:else}<Icon name={current ? 'check' : 'arrow'} size={16} />{/if}</span>
             </button>
+            {#if cached && cached.state !== 'missing'}<button class="clear-cache" title={syncBlocked ? '请等待当前文档同步完成' : '清除此库的本地缓存'} aria-label={`清除数据库 ${database} 的缓存，连接 ${connectionLabel}`} disabled={syncBlocked || databaseLoading || openingDatabase !== null} onclick={() => clearTarget = document}><Icon name="trash" size={14} /></button>{/if}
+            </div>
           {/each}
           {#if useCurrent && !databaseQuery && !cachedOnly}<button class="document-row current-session" disabled={openingDatabase !== null} onclick={() => void open()}><span class="document-identity"><span class="database-icon"><Icon name="database" size={18} /></span><span class="database-name"><strong>默认数据库</strong><small>打开当前连接的默认文档</small><small class="mobile-connection">连接：{selectedLabel}</small></span></span><span class="connection-cell connection-column">{selectedLabel}</span><span class="cache-cell">默认范围</span><span class="date-column"></span><Icon name="arrow" size={16} /></button>{/if}
           {#if !visibleDatabases.length && (!useCurrent || databaseQuery || cachedOnly)}<div class="documents-empty" role="status">{#if databaseLoading}<span class="spinner"></span><h2>正在读取本地文档记录</h2>{:else}<Icon name={databaseQuery ? 'search' : 'database'} size={28} /><h2>{databaseQuery ? '没有匹配的数据库' : cachedOnly ? '还没有本地缓存' : '还没有最近使用的数据库'}</h2><p>{databaseQuery ? '换一个名称搜索，或清空搜索条件。' : cachedOnly ? '切换到全部数据库，打开文档后点击刷新即可创建缓存。' : '从 DBX 的数据库右键打开文档后，点击「刷新列表」更新本地记录。'}</p>{#if databaseQuery || cachedOnly}<button class="btn" onclick={() => { databaseQuery = ''; cachedOnly = false }}>查看全部数据库</button>{/if}{/if}</div>{/if}
@@ -202,6 +226,7 @@
 </section>
 
 {#if batchOpen}<BatchRefreshDialog {documents} onclose={() => void closeBatch()} onupdated={cacheUpdated} />{/if}
+{#if clearTarget}<ClearCacheDialog context={clearContext} connectionName={connectionNameOf(clearTarget.connection)} onclose={closeClear} oncleared={cacheCleared} />{/if}
 
 <style>
   .switcher { height: 100%; min-height: 0; display: flex; flex-direction: column; background: var(--panel); overflow: auto; }
@@ -239,7 +264,16 @@
   .mobile-sort { display: none; padding: 8px 5px; border: 1px solid var(--border); border-radius: 6px; color: var(--text); background: var(--panel); font: inherit; font-size: 11px; }
   .documents-list { flex: 1 0 auto; min-height: 180px; border-top: 1px solid var(--border); }
   .list-columns, .document-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(120px,.65fr) 138px 155px 22px; align-items: center; column-gap: 16px; }
-  .list-columns { padding: 11px 13px; color: var(--muted); font-size: 10px; border-bottom: 1px solid var(--border); }
+  .list-columns { padding: 11px 47px 11px 13px; color: var(--muted); font-size: 10px; border-bottom: 1px solid var(--border); }
+  .document-entry { position: relative; padding-right: 34px; border-bottom: 1px solid var(--border); }
+  .document-entry.current { background: color-mix(in srgb, var(--accent-weak) 45%, transparent); }
+  .document-entry .document-row { border-bottom: 0; }
+  .document-entry .document-row.current { background: transparent; }
+  .clear-cache { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 26px; height: 26px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; }
+  .clear-cache:hover { color: var(--danger); background: var(--row-hover); }
+  .clear-cache:focus-visible { outline: 2px solid var(--accent); }
+  .clear-cache:disabled { opacity: .35; cursor: default; }
+  @media(max-width:600px) { .documents-list .list-columns { padding-right: 40px; } }
   .column-sort { display: inline-flex; justify-self: start; align-items: center; gap: 5px; border: 0; padding: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
   .column-sort > span { opacity: .5; font-size: 12px; }
   .column-sort:hover, .column-sort.sorted { color: var(--accent); }.column-sort.sorted > span { opacity: 1; }

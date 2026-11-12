@@ -106,6 +106,9 @@ export async function discoverBatchTargets(bridge: DbxBridge, documents: Documen
     if (!active()) break
     if (issue) options.onIssue?.({ connectionId: connection.connectionId, name, message: issue })
     for (const database of databases) {
+      // Apply dialect exclusions even if the host returns unfiltered rows.
+      // Filter after pagination so a page of system names cannot hide later business databases.
+      if (getAdapter(dbType)?.isSystemDatabase?.(database)) continue
       const target = { connectionId: connection.connectionId, name, dbType: dbType === 'unknown' ? connection.dbType : dbType, database }
       targets.set(batchKey(target), target)
     }
@@ -129,6 +132,9 @@ export async function refreshBatch(
     const update = (patch: Partial<BatchItem>) => { item = { ...item, ...patch }; options.onUpdate(item) }
     if (!options.shouldContinue()) {
       update({ state: 'cancelled', message: '已停止，保留原缓存' }); results.push(item); continue
+    }
+    if (getAdapter(target.dbType)?.isSystemDatabase?.(target.database)) {
+      update({ state: 'skipped', message: '系统数据库不参与批量生成，保留原缓存' }); results.push(item); continue
     }
     update({ state: 'running', message: '确认数据库会话…' })
     try {

@@ -437,6 +437,33 @@
     void boot()
   }
   function changeResource() { pickerCacheChanged = false; pickerOpen = true }
+  function cacheCleared(ctx: PluginContext) {
+    if (ctx.connectionId) cache.clear(connKeyOf(ctx.connectionId, refOf(ctx)))
+    if (ctx.connectionId !== app.ctx.connectionId || ctx.database !== app.ctx.database
+      || normalizeDbType(ctx.dbType ?? '') !== normalizeDbType(app.dbType)) return
+    pickerCacheChanged = true
+    offlineDocument = null
+    offlineVersion += 1
+    cachedTableCount = 0
+    app.offline = true
+    app.offlineSavedAt = 0
+    app.offlineDetailAt = 0
+    app.catalog = []
+    app.schemas = []
+    app.selectedTable = null
+    app.selectedSchema = null
+    app.detail = null
+    app.detailLoading = false
+    app.schemaFilter = null
+    app.ctxTargetTable = null
+    app.catalogError = ''
+    app.storageError = ''
+    app.errorMessage = ''
+    app.columnHits = new Set()
+    syncIssues = []
+    syncDone = syncTotal = syncFailed = 0
+    app.resetHistory()
+  }
   function closeResourcePicker() {
     pickerOpen = false
     if (pickerCacheChanged) { pickerCacheChanged = false; void boot() }
@@ -479,7 +506,7 @@
 {:else if app.phase === 'booting'}
   <div class="boot" role="status"><span class="spinner"></span>正在打开数据库文档…</div>
 {:else if app.phase === 'guide'}
-  <Guide onsnapshot={() => snapshotOpen = true} {snapshotChanged} context={app.ctx} diagnostics={app.diagMessage || null} onopen={chooseResource} syncBlocked={app.catalogRefreshing || syncBusy} />
+  <Guide onsnapshot={() => snapshotOpen = true} {snapshotChanged} context={app.ctx} diagnostics={app.diagMessage || null} onopen={chooseResource} oncachecleared={cacheCleared} syncBlocked={app.catalogRefreshing || syncBusy} />
 {:else if app.phase === 'unsupported'}
   <EmptyState icon="database" title="暂不支持该数据库类型" description="{app.dbType} 暂不支持完整文档；可从具体表的右键菜单查看基础字段。" actionLabel="选择其他连接" onaction={changeResource} />
 {:else if app.phase === 'denied'}
@@ -528,7 +555,7 @@
 {#if sqlOpen}<SqlDialog state={dialogState ?? app} onclose={() => (sqlOpen = false)} />{/if}
 {#if exportOpen}<ExportDialog state={dialogState ?? app} initialMode={exportMode} getOfflineDocument={() => offlineDocument} onclose={() => (exportOpen = false)} />{/if}
 {#if pickerOpen}<div class="resource-overlay"><Guide onsnapshot={() => snapshotOpen = true} {snapshotChanged} context={{ ...app.ctx, dbType: app.dbType }}
-  diagnostics={app.diagMessage || null} onopen={chooseResource} syncBlocked={app.catalogRefreshing || syncBusy} oncacheupdated={(target) => { if (target.connectionId === app.ctx.connectionId && target.database === app.ctx.database) pickerCacheChanged = true }} onclose={closeResourcePicker} returnLabel={app.phase === 'ready' ? '返回文档' : '返回'} /></div>{/if}
+  diagnostics={app.diagMessage || null} onopen={chooseResource} syncBlocked={app.catalogRefreshing || syncBusy} oncachecleared={cacheCleared} oncacheupdated={(target) => { if (target.connectionId === app.ctx.connectionId && target.database === app.ctx.database) pickerCacheChanged = true }} onclose={closeResourcePicker} returnLabel={app.phase === 'ready' ? '返回文档' : '返回'} /></div>{/if}
 
 </div>
 

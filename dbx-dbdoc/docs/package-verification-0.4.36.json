@@ -1,0 +1,60 @@
+{
+  "version": "0.4.36",
+  "target": "universal",
+  "sha256": "e79c11a6d5c6fcffc7e5b4f3b563a68e835bfb5af4a8a4bf570d77736db53f70",
+  "size": 8518286,
+  "checksumsVerified": 14,
+  "manifestSemanticMatch": true,
+  "frontendAndAssetsMatch": true,
+  "hostApi": "^1.4",
+  "hostPatchRequired": false,
+  "backends": [
+    {
+      "target": "darwin-x64",
+      "bytes": 3309936,
+      "sha256": "fd6e19032ec278b301dd4722655c4d7b19e3af22a66c81a3ba1cc382ae773ba9",
+      "architectureVerified": true
+    },
+    {
+      "target": "darwin-arm64",
+      "bytes": 3121218,
+      "sha256": "7e7ae19a5e4599c72c267b766b518a685232281abef9927495514cee9459bcea",
+      "architectureVerified": true
+    },
+    {
+      "target": "linux-x64",
+      "bytes": 3309692,
+      "sha256": "5242b1c137fb90ed55eb176f59a8b9a9a1df55224d47081fb97676da62b6e89f",
+      "architectureVerified": true
+    },
+    {
+      "target": "linux-arm64",
+      "bytes": 3145852,
+      "sha256": "1b33546c668c3a6c3f92e90ea767aa3f84b81d4e6d573cf9d8133928f4fb8fb7",
+      "architectureVerified": true
+    },
+    {
+      "target": "windows-x64",
+      "bytes": 3427840,
+      "sha256": "b2e33b442b2f5b98bed05513660f18d8134bd666325d51bceda28ef959e97efe",
+      "architectureVerified": true
+    },
+    {
+      "target": "windows-arm64",
+      "bytes": 3141120,
+      "sha256": "4bd700f9f62e71895819113249652edc11cb7cf65950f29029e17d330108e206",
+      "architectureVerified": true
+    }
+  ],
+  "packagedLauncherProtocol": {
+    "passed": true,
+    "platform": "darwin",
+    "arch": "arm64",
+    "restartedProcesses": 3,
+    "snapshotBytes": 4400000,
+    "customDirectoryRestored": true,
+    "interruptedWriteKeepsPrevious": true,
+    "extractionWithoutExecutableBitsSupported": true
+  },
+  "signed": false
+}

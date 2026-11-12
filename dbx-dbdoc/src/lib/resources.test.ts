@@ -45,6 +45,21 @@ describe('资源选择器', () => {
     expect(JSON.stringify(connections)).toBe(original)
     expect(documentResources([])).toEqual([])
   })
+  it('本地历史、当前上下文及合并列表都排除系统库，保留相似业务库和其他类型的同名库', () => {
+    const entries = [
+      { connectionId: 'cloud', name: '海南 / 全部库-TEST', dbType: 'MariaDB', database: '__cdb_recycle_bin__', ts: 10 },
+      { connectionId: 'cloud', name: '海南 / 全部库-TEST', dbType: 'MariaDB', database: '__cdb_recycle_bin___backup', ts: 9 },
+      { connectionId: 'pg', name: 'PG', dbType: 'postgres', database: '__cdb_recycle_bin__', ts: 8 }
+    ]
+    const before = JSON.stringify(entries)
+    const groups = groupConnections(entries, { connectionId: 'cloud', dbType: 'mysql', database: '__CDB_RECYCLE_BIN__' })
+    const resources = documentResources(groups, { connectionId: 'cloud', databases: ['sys', '__cdb_recycle_bin__', 'shop'] })
+    expect(resources.map(({ connection, database }) => [connection.connectionId, database])).toEqual([
+      ['cloud', '__cdb_recycle_bin___backup'], ['cloud', 'shop'], ['pg', '__cdb_recycle_bin__']
+    ])
+    expect(documentResources(groupConnections([entries[0]]))).toEqual([])
+    expect(JSON.stringify(entries)).toBe(before)
+  })
 
   it('当前连接置顶并使用实时上下文名称、类型和数据库', () => {
     const groups = groupConnections(recent, { connectionId: 'b', name: '实时名称', dbType: 'postgresql', database: 'events' })
@@ -138,6 +153,30 @@ describe('document picker cache summaries', () => {
     details: Object.fromEntries(['a', 'b'].map((schema) => [JSON.stringify([schema, 'orders']), {
       savedAt: 150, value: { table: table(schema), columns: [], indexes: [], constraints: [], warnings: [] }
     }])) as OfflineDocument['details'] })
+  it.each([false, true])('刷新本地历史不显示回收站，无论是否仍有旧缓存：%s', async cached => {
+    const entries = [
+      { connectionId: 'cloud', name: '海南 / 全部库-TEST', dbType: 'mysql', database: '__cdb_recycle_bin__', ts: 10 },
+      { connectionId: 'cloud', name: '海南 / 全部库-TEST', dbType: 'mysql', database: 'shop', ts: 9 }
+    ]
+    const recycleKey = offlineKey(entries[0])
+    const storage = new Map([['dbdoc.recent', JSON.stringify(entries)]])
+    if (cached) storage.set(recycleKey, JSON.stringify(document()))
+    const bridge = {
+      capabilities: { storage: true }, storageGet: vi.fn(async (key: string) => storage.get(key) ?? null),
+      storageSet: vi.fn(), queryData: vi.fn(), getConnections: vi.fn()
+    }
+    for (let refresh = 0; refresh < 2; refresh++) {
+      const snapshot = await loadLocalDocumentList(bridge as unknown as DbxBridge)
+      expect(documentResources(groupConnections(snapshot.recent)).map(item => item.database)).toEqual(['shop'])
+      expect([...snapshot.cacheEntries.keys()]).toEqual([JSON.stringify(['cloud', 'shop'])])
+      expect(snapshot.cacheEntries.get(JSON.stringify(['cloud', 'shop']))?.state).toBe('missing')
+    }
+    expect(bridge.storageGet.mock.calls.some(([key]) => key === recycleKey)).toBe(false)
+    expect(bridge.storageSet).not.toHaveBeenCalled()
+    expect(bridge.queryData).not.toHaveBeenCalled()
+    expect(bridge.getConnections).not.toHaveBeenCalled()
+    expect(storage.get(recycleKey)).toBe(cached ? JSON.stringify(document()) : undefined)
+  })
   it.each(['Connection is not open', 'PLUGIN_DATA_ACCESS_NOT_GRANTED'])('刷新本地列表无需数据库会话或查询权限：%s', async (message) => {
     const stored = new Map<string, string>([
       ['dbdoc.recent', JSON.stringify(recent)],

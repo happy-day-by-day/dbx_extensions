@@ -3,6 +3,7 @@ import type { DbColumn, DbConstraint, DbIndex, DbTable } from './entities'
 import { likePattern, num, nullableStr, sqlLiteral, str } from './shared'
 
 const SYSTEM_SCHEMAS = "'INFORMATION_SCHEMA','MYSQL','PERFORMANCE_SCHEMA','SYS'"
+const SYSTEM_DATABASES = ['information_schema', 'performance_schema', 'mysql', 'sys', '__cdb_recycle_bin__']
 
 const dbFilter = (db: string | null, alias = ''): string => {
   const schema = `${alias ? `${alias}.` : ''}TABLE_SCHEMA`
@@ -40,10 +41,11 @@ export const mysqlAdapter: DialectAdapter = {
     WHERE ${dbFilter(ref.db)}
     GROUP BY TABLE_SCHEMA, TABLE_NAME`,
   // 连接未选默认库时枚举可选库（排除系统库）
+  isSystemDatabase: (name) => SYSTEM_DATABASES.includes(name.toLowerCase()),
   listDatabases: () => `
     SELECT SCHEMA_NAME AS database_name
     FROM INFORMATION_SCHEMA.SCHEMATA
-    WHERE SCHEMA_NAME NOT IN ('information_schema', 'performance_schema', 'mysql', 'sys')
+    WHERE LOWER(SCHEMA_NAME) NOT IN (${SYSTEM_DATABASES.map(sqlLiteral).join(', ')})
     ORDER BY SCHEMA_NAME`,
   listColumns: (ref, table) => `
     SELECT TABLE_SCHEMA AS table_schema, TABLE_NAME AS table_name, COLUMN_NAME AS column_name, EXTRA AS extra,

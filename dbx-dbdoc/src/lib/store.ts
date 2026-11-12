@@ -264,7 +264,7 @@ export async function listDatabases(
   if (typeof adapter.listDatabases !== 'function') return []
   try {
     const rows = await runQuery(bridge, connectionId, ref, adapter.listDatabases(ref))
-    return rows.map((row) => String(row.database_name ?? '')).filter((name) => name !== '')
+    return rows.map((row) => String(row.database_name ?? '')).filter((name) => name !== '' && !adapter.isSystemDatabase?.(name))
   } catch (err) {
     if (strict || isDataAccessDenied(err)) throw err
     return []

@@ -2,7 +2,7 @@ import { loadOffline, type OfflineDocument } from './offline'
 import { loadRecent, type RecentConnection } from './recent'
 import type { DbxBridge, PluginContext } from './types'
 import { cleanConnectionName, connectionLabel } from './connectionLabels'
-import { normalizeDbType } from './dialects/registry'
+import { getAdapter, normalizeDbType } from './dialects/registry'
 import { runConcurrentQueue } from './store'
 
 export interface ResourceConnection {
@@ -48,7 +48,11 @@ export function documentResources(connections: ResourceConnection[], refreshed?:
   return connections.flatMap((connection) => {
     const databases = refreshed?.connectionId === connection.connectionId
       ? mergeDatabases(connection.databases, refreshed.databases) : connection.databases
-    return databases.map((database) => ({ key: JSON.stringify([connection.connectionId, database]), connection, database }))
+    const adapter = getAdapter(connection.dbType)
+    // Historical entries and recovered snapshot indexes can predate discovery
+    // exclusions. Apply the same policy before rendering or reading summaries.
+    return databases.filter((database) => !adapter?.isSystemDatabase?.(database))
+      .map((database) => ({ key: JSON.stringify([connection.connectionId, database]), connection, database }))
   })
 }
 

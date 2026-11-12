@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { cacheAllTables, finishOfflineSync, exportOfflineSchema, searchOfflineColumnMatches, loadOffline, offlineKey, offlineTableKey, saveOffline, withOfflineDetail, type OfflineDocument } from './offline'
+import { clearOffline, cacheAllTables, finishOfflineSync, exportOfflineSchema, searchOfflineColumnMatches, loadOffline, offlineKey, offlineTableKey, saveOffline, withOfflineDetail, type OfflineDocument } from './offline'
 import type { DbxBridge } from './types'
 import type { TableDetail } from './markdown'
 
@@ -12,10 +12,46 @@ const document = (): OfflineDocument => ({ version: 1, savedAt: 123, catalog: { 
 const host = (storage = new Map<string, string>()) => ({
   capabilities: { storage: true },
   storageGet: vi.fn(async (key: string) => storage.get(key) ?? null),
-  storageSet: vi.fn(async (key: string, value: string) => { storage.set(key, value) })
+  storageSet: vi.fn(async (key: string, value: string) => { storage.set(key, value) }),
+  storageDelete: vi.fn(async (key: string) => { storage.delete(key) })
 }) as unknown as DbxBridge
 
 describe('offline documents', () => {
+  it('clears only the selected connection, database and dialect, keeping recent records', async () => {
+    const storage = new Map([['dbdoc.recent', 'recent records']]), bridge = host(storage)
+    const others = [{ ...ctx, connectionId: 'c2' }, { ...ctx, database: 'other' }, { ...ctx, dbType: 'postgres' }]
+    const doc = { ...document(), lastSyncedAt: 123 }
+    await Promise.all([ctx, ...others].map(target => saveOffline(bridge, target, doc)))
+    await clearOffline(bridge, ctx)
+    expect(await loadOffline(host(storage), ctx)).toBeNull()
+    for (const other of others) expect(await loadOffline(bridge, other)).toEqual(doc)
+    expect(storage.get('dbdoc.recent')).toBe('recent records')
+  })
+  it('orders clear after older saves and allows a later explicit sync', async () => {
+    const bridge = host(), order: string[] = []
+    const set = vi.mocked(bridge.storageSet).getMockImplementation()!
+    vi.mocked(bridge.storageSet).mockImplementation(async (...args) => { await Promise.resolve(); order.push('save'); await set(...args) })
+    const remove = vi.mocked(bridge.storageDelete!).getMockImplementation()!
+    vi.mocked(bridge.storageDelete!).mockImplementation(async key => { order.push('clear'); await remove(key) })
+    const pending = saveOffline(bridge, ctx, document())
+    await clearOffline(bridge, ctx); await pending
+    expect(order).toEqual(['save', 'clear'])
+    expect(await loadOffline(bridge, ctx)).toBeNull()
+    expect(await saveOffline(bridge, ctx, document())).toBe(true)
+    expect(await loadOffline(bridge, ctx)).toEqual(document())
+  })
+  it('preserves the document and success time after a failed clear and rejects missing identity or support', async () => {
+    const bridge = host(), doc = { ...document(), lastSyncedAt: 123 }
+    await saveOffline(bridge, ctx, doc)
+    vi.mocked(bridge.storageDelete!).mockRejectedValueOnce(new Error('disk full'))
+    await expect(clearOffline(bridge, ctx)).rejects.toThrow('disk full')
+    expect(await loadOffline(bridge, ctx)).toEqual(doc)
+    for (const field of ['connectionId', 'database', 'dbType']) {
+      await expect(clearOffline(bridge, { ...ctx, [field]: '' })).rejects.toThrow('缺少')
+    }
+    bridge.storageDelete = undefined
+    await expect(clearOffline(bridge, ctx)).rejects.toThrow('更新插件')
+  })
   it('restores metadata through a new host session and isolates connection, database and dialect', async () => {
     const storage = new Map<string, string>()
     const doc = withOfflineDetail(document(), detail())

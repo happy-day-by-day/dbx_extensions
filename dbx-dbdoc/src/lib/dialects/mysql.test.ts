@@ -87,7 +87,15 @@ describe('mysqlAdapter listDatabases', () => {
   it('枚举库并排除系统库', () => {
     const sql = mysqlAdapter.listDatabases!(ref)
     expect(sql).toContain('INFORMATION_SCHEMA.SCHEMATA')
-    expect(sql).toContain("NOT IN ('information_schema', 'performance_schema', 'mysql', 'sys')")
+    expect(sql).toContain("LOWER(SCHEMA_NAME) NOT IN ('information_schema', 'performance_schema', 'mysql', 'sys', '__cdb_recycle_bin__')")
     expect(sql).toContain('ORDER BY SCHEMA_NAME')
+  })
+  it('大小写不敏感地识别完整系统库名，不误排除相似的业务库', () => {
+    expect(mysqlAdapter.isSystemDatabase!('__cdb_recycle_bin__')).toBe(true)
+    expect(mysqlAdapter.isSystemDatabase!('__CDB_RECYCLE_BIN__')).toBe(true)
+    expect(mysqlAdapter.isSystemDatabase!('MYSQL')).toBe(true)
+    for (const database of ['__cdb_recycle_bin___backup', 'cdb_recycle_bin', 'sys_orders', 'shop']) {
+      expect(mysqlAdapter.isSystemDatabase!(database)).toBe(false)
+    }
   })
 })

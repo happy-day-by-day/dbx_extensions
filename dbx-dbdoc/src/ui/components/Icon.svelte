@@ -16,6 +16,7 @@
     code: 'm8 6-6 6 6 6m8-12 6 6-6 6m-2-14-4 16',
     filter: 'M4 6h16M7 12h10M10 18h4',
     edit: 'm16 3 5 5M3 21l5-1 13-13-5-5L3 15z',
+    trash: 'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7',
     close: 'm6 6 12 12M6 18 18 6',
     check: 'm5 12 4 4L19 6',
     grid: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z'
