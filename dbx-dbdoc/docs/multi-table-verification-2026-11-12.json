@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-12",
+  "scope": "multi-table document viewing",
+  "svelteCheck": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "unitTests": {
+    "passed": 286,
+    "files": 25
+  },
+  "build": true,
+  "browser": {
+    "environment": "Chrome with mock DBX host and seeded offline snapshots",
+    "viewports": [
+      1280,
+      900,
+      720,
+      390
+    ],
+    "passed": true,
+    "checks": [
+      "directory ordering",
+      "cross-schema identity",
+      "independent tabs and search",
+      "correct per-table SQL/export",
+      "selection preserved through filters",
+      "keyboard checkbox",
+      "unique tab IDs",
+      "lazy rendering",
+      "isolated missing cache",
+      "no overlap",
+      "four viewport widths",
+      "single-table restoration",
+      "density retained",
+      "foreign key adds and locates referenced table",
+      "explicit host table action",
+      "resource switch clears mode"
+    ],
+    "queries": 0,
+    "pageErrors": []
+  }
+}

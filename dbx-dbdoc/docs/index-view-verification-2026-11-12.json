@@ -1,0 +1,91 @@
+{
+  "date": "2026-11-12",
+  "version": "0.4.34",
+  "scope": "compact index table and local index search",
+  "svelteCheck": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "unitTests": {
+    "passed": 288,
+    "files": 25
+  },
+  "build": true,
+  "browser": {
+    "passed": true,
+    "environment": "Chrome with mock DBX host and seeded offline snapshots",
+    "checks": [
+      "one row per index",
+      "ordered composite keys",
+      "ASC/DESC",
+      "prefix length",
+      "unique constraint",
+      "separate INCLUDE and WHERE",
+      "expressions",
+      "copy index name",
+      "local search across index metadata",
+      "empty search and clear",
+      "field chip locates index",
+      "independent field/index search",
+      "dense layout",
+      "full long names and comments",
+      "single/multi-table layouts",
+      "independent per-table search",
+      "no-index state",
+      "light/dark themes",
+      "four viewport widths with local horizontal scrolling",
+      "many-index scrolling with sticky header"
+    ],
+    "responsive": [
+      {
+        "viewportWidth": 1280,
+        "contentWidth": 929,
+        "scrollWidth": 929
+      },
+      {
+        "viewportWidth": 900,
+        "contentWidth": 561,
+        "scrollWidth": 720
+      },
+      {
+        "viewportWidth": 720,
+        "contentWidth": 690,
+        "scrollWidth": 720
+      },
+      {
+        "viewportWidth": 390,
+        "contentWidth": 360,
+        "scrollWidth": 720
+      }
+    ],
+    "denseSingleKeyRowHeight": 35,
+    "queries": 0,
+    "pageErrors": []
+  },
+  "multiTableRegression": {
+    "passed": true,
+    "checks": [
+      "directory ordering",
+      "cross-schema identity",
+      "independent tabs and search",
+      "correct per-table SQL/export",
+      "selection preserved through filters",
+      "row click and keyboard Enter/Space toggle exactly once",
+      "arrow keys focus correct row",
+      "no catalog checkboxes",
+      "light/dark color selection",
+      "unique tab IDs",
+      "lazy rendering",
+      "isolated missing cache",
+      "no overlap",
+      "four viewport widths",
+      "single-table restoration",
+      "density retained",
+      "foreign key adds and locates referenced table",
+      "explicit host table action",
+      "resource switch clears mode"
+    ],
+    "queries": 0,
+    "pageErrors": []
+  }
+}

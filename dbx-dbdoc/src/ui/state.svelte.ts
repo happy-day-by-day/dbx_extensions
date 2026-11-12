@@ -24,6 +24,9 @@ export function createAppState() {
   let offlineDetailAt = $state(0)
   let storageError = $state('')
   let catalog = $state<DbTable[]>([])
+  let catalogSort = $state<'name' | 'columns'>('name')
+  let multiTableMode = $state(false)
+  let checkedTables = $state<Set<string>>(new Set())
   let truncated = $state(false)
   let schemas = $state<string[]>([])
   // schemaFilter：用户在目录中选择的 Schema 范围（null = 全部）。
@@ -52,6 +55,19 @@ export function createAppState() {
     selectedSchema = schema
     selectedTable = table
   }
+  function toggleCheckedTable(table: DbTable) {
+    const key = JSON.stringify([table.table_schema, table.table_name])
+    const next = new Set(checkedTables)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    checkedTables = next
+  }
+  function setMultiTableMode(enabled: boolean) {
+    multiTableMode = enabled
+    if (enabled && !checkedTables.size && selectedTable && catalog.some(table => table.table_name === selectedTable && table.table_schema === selectedSchema)) {
+      checkedTables = new Set([JSON.stringify([selectedSchema, selectedTable])])
+    }
+  }
   function moveHistory(direction: -1 | 1) {
     const next = moveTableHistory(history, direction)
     if (next === history) return
@@ -69,7 +85,18 @@ export function createAppState() {
     get offlineDetailAt() { return offlineDetailAt }, set offlineDetailAt(v: number) { offlineDetailAt = v },
     get storageError() { return storageError }, set storageError(v: string) { storageError = v },
     get degraded() { return degraded }, set degraded(v: boolean) { degraded = v },
-    get catalog() { return catalog }, set catalog(v: DbTable[]) { catalog = v },
+    get catalog() { return catalog }, set catalog(v: DbTable[]) {
+      catalog = v
+      if (checkedTables.size) {
+        const available = new Set(v.map(table => JSON.stringify([table.table_schema, table.table_name])))
+        checkedTables = new Set([...checkedTables].filter(key => available.has(key)))
+      }
+    },
+    get catalogSort() { return catalogSort }, set catalogSort(v: 'name' | 'columns') { catalogSort = v },
+    get multiTableMode() { return multiTableMode },
+    get checkedTables() { return checkedTables }, set checkedTables(v: Set<string>) { checkedTables = v },
+    setMultiTableMode,
+    toggleCheckedTable,
     get truncated() { return truncated }, set truncated(v: boolean) { truncated = v },
     get schemas() { return schemas }, set schemas(v: string[]) { schemas = v },
     get schemaFilter() { return schemaFilter }, set schemaFilter(v: string | null) { schemaFilter = v },
@@ -91,7 +118,7 @@ export function createAppState() {
     navigateTable,
     goBack: () => moveHistory(-1),
     goForward: () => moveHistory(1),
-    resetHistory: () => { history = emptyTableHistory(); catalogSearch = { keyword: '', regexMode: false } },
+    resetHistory: () => { history = emptyTableHistory(); catalogSearch = { keyword: '', regexMode: false }; multiTableMode = false; checkedTables = new Set() },
     get revision() { return revision }, set revision(v: number) { revision = v }
   }
 }

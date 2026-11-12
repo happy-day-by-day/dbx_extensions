@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-12",
+  "version": "0.4.33",
+  "scope": "multi-table row selection without checkboxes",
+  "svelteCheck": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "build": true,
+  "browser": {
+    "environment": "Chrome with mock DBX host and seeded offline snapshots",
+    "viewports": [
+      1280,
+      900,
+      720,
+      390
+    ],
+    "passed": true,
+    "checks": [
+      "directory ordering",
+      "cross-schema identity",
+      "independent tabs and search",
+      "correct per-table SQL/export",
+      "selection preserved through filters",
+      "row click and keyboard Enter/Space toggle exactly once",
+      "arrow keys focus correct row",
+      "no catalog checkboxes",
+      "light/dark color selection",
+      "unique tab IDs",
+      "lazy rendering",
+      "isolated missing cache",
+      "no overlap",
+      "four viewport widths",
+      "single-table restoration",
+      "density retained",
+      "foreign key adds and locates referenced table",
+      "explicit host table action",
+      "resource switch clears mode"
+    ],
+    "queries": 0,
+    "pageErrors": []
+  }
+}

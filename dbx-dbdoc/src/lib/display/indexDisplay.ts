@@ -52,3 +52,12 @@ export const databaseIndexDisplayTitle = (index: DbIndex = {} as DbIndex): strin
     .filter(Boolean)
     .join(' · ')
 }
+
+export const databaseIndexMatches = (rows: readonly DbIndex[], keyword: string): boolean => {
+  const needle = keyword.trim().toLowerCase()
+  if (!needle) return true
+  return rows.some((index) => [
+    index.index_name, index.column_name, index.expression, index.index_comment,
+    index.predicate, databaseIndexKindLabel(index), databaseIndexAlgorithm(index)
+  ].some((value) => normalizedText(value).toLowerCase().includes(needle)))
+}

@@ -66,8 +66,8 @@ async function readDatabaseNames(bridge: DbxBridge, connectionId: string, databa
   return { names, complete: false }
 }
 
-// Enumerate only explicitly connected connections, without opening any new session.
-// Local documents are fallbacks, never a prerequisite for discovering or generating a database.
+// Enumerate only connections marked connected by the host.
+// Historical documents supply labels, never evidence that a name is a database.
 export async function discoverBatchTargets(bridge: DbxBridge, documents: DocumentResource[], options: {
   shouldContinue?: () => boolean
   onConnection?: (name: string, current: number, total: number) => void
@@ -81,26 +81,28 @@ export async function discoverBatchTargets(bridge: DbxBridge, documents: Documen
     const known = documents.filter((document) => document.connection.connectionId === connection.connectionId)
     const name = connection.name || known[0]?.connection.name || '未命名连接'
     const dbType = normalizeDbType(connection.dbType || known[0]?.connection.dbType || '')
-    const databases = new Set([...known.map((document) => document.database), connection.database].filter((value): value is string => Boolean(value)))
+    const databases = new Set<string>()
     options.onConnection?.(name, index + 1, connected.length)
     const sql = databaseListSql(dbType)
     let issue = ''
     if (sql) {
-      // No database means the host's existing base session. Fall back to known
-      // exact sessions only if that base session is closed; never reconnect.
-      for (const session of [undefined, ...databases]) {
+      // Prefer the host's base session, then its configured default database.
+      // Never try historical document names as sessions: they can be stale or
+      // contain table names, and the host may attempt to connect to them.
+      const sessions = connection.database ? [undefined, connection.database] : [undefined]
+      for (const session of sessions) {
         if (!active()) break
         try {
           const result = await readDatabaseNames(bridge, connection.connectionId, session, sql, dbType, active)
           for (const database of result.names) databases.add(database)
-          issue = result.complete ? '' : `${result.issue ? result.issue + '；' : ''}数据库目录未能完整读取；已发现及已知的数据库仍可生成`
+          issue = result.complete ? '' : `${result.issue ? result.issue + '；' : ''}数据库目录未能完整读取；仅生成目录已确认的数据库`
           break
         } catch (err) {
-          issue = maskUuids(err instanceof Error ? err.message : String(err))
+          issue = `${maskUuids(err instanceof Error ? err.message : String(err))}；未能确认数据库目录，本连接未加入批量任务`
           if (!isConnectionNotOpen(err)) break
         }
       }
-    } else issue = '暂不支持此类型的数据库目录；仅保留已知数据库'
+    } else issue = '暂不支持此类型的数据库目录；本连接未加入批量任务'
     if (!active()) break
     if (issue) options.onIssue?.({ connectionId: connection.connectionId, name, message: issue })
     for (const database of databases) {

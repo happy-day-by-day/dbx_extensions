@@ -6,6 +6,7 @@ import {
   databaseIndexDisplayTitle,
   databaseIndexKind,
   databaseIndexKindLabel,
+  databaseIndexMatches,
   databaseIndexSequence
 } from './indexDisplay'
 
@@ -71,5 +72,26 @@ describe('indexDisplay', () => {
     expect(databaseIndexSequence(makeIndex({ seq: undefined }))).toBe(1)
     expect(databaseIndexDirection(makeIndex({ collation: 'asc' }))).toBe('ASC')
     expect(databaseIndexDirection(makeIndex({ collation: '' }))).toBe('')
+  })
+
+  it('按索引名称、类型、方法和注释进行本地搜索', () => {
+    const rows = [makeIndex({ index_name: 'uk_email', non_unique: '0', index_type: 'BTREE', index_comment: '邮箱唯一约束' })]
+    for (const keyword of [' UK_EMAIL ', '唯一', 'btree', '邮箱', '']) {
+      expect(databaseIndexMatches(rows, keyword)).toBe(true)
+    }
+    expect(databaseIndexMatches(rows, '不存在')).toBe(false)
+  })
+
+  it('搜索联合索引的任一键字段、包含字段、表达式或过滤条件时保留整个索引', () => {
+    const rows = [
+      makeIndex({ column_name: 'tenant_id', seq: 1 }),
+      makeIndex({ column_name: 'created_at', seq: 2 }),
+      makeIndex({ column_name: 'email', seq: 3, is_included: true }),
+      makeIndex({ expression: 'lower(display_name)', seq: 4, is_expression: true, predicate: 'deleted_at IS NULL' })
+    ]
+    for (const keyword of ['tenant_id', 'created_at', 'email', 'LOWER(display_name)', 'deleted_at']) {
+      expect(databaseIndexMatches(rows, keyword)).toBe(true)
+    }
+    expect(rows.map((row) => row.seq)).toEqual([1, 2, 3, 4])
   })
 })

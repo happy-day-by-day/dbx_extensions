@@ -49,12 +49,12 @@ describe('批量生成离线文档', () => {
       { connectionId: 'b', name: '生产', dbType: 'postgres', database: 'shop', ts: 3 }
     ]))
     const discovered = await discoverBatchTargets(bridge, documents)
-    expect(discovered.map((item) => [item.connectionId, item.database])).toEqual([['a', 'reporting'], ['a', 'shop'], ['a', 'new_db']])
+    expect(discovered.map((item) => [item.connectionId, item.database])).toEqual([['a', 'new_db'], ['a', 'shop']])
     expect(api.queryData).toHaveBeenCalledTimes(1)
     expect(api.queryData).toHaveBeenCalledWith(expect.objectContaining({ connectionId: 'a', sql: expect.stringContaining('INFORMATION_SCHEMA.SCHEMATA') }))
     setConnections([{ ...target, connected: true }, { ...target, connectionId: 'b', dbType: 'postgres', connected: true }])
     expect((await discoverBatchTargets(bridge, documents)).map((item) => [item.connectionId, item.database])).toEqual([
-      ['a', 'reporting'], ['a', 'shop'], ['a', 'new_db'], ['b', 'shop'], ['b', 'new_db']
+      ['a', 'new_db'], ['a', 'shop'], ['b', 'new_db'], ['b', 'shop']
     ])
     expect(api.queryData).toHaveBeenLastCalledWith(expect.objectContaining({ connectionId: 'b', sql: expect.stringContaining('pg_database') }))
     expect(loadCatalog).not.toHaveBeenCalled()
@@ -79,7 +79,7 @@ describe('批量生成离线文档', () => {
     api.queryData.mockResolvedValueOnce({ dbType: 'mysql', columns: [{ name: 'database_name', dataType: 'varchar' }], rows: [['first']], truncated: true } as never)
       .mockResolvedValueOnce({ dbType: 'mysql', columns: [{ name: 'database_name', dataType: 'varchar' }], rows: [['second']], truncated: false } as never)
     const issues: BatchDiscoveryIssue[] = []
-    expect((await discoverBatchTargets(bridge, [], { onIssue: (issue) => issues.push(issue) })).map((item) => item.database)).toEqual(['shop', 'first', 'second'])
+    expect((await discoverBatchTargets(bridge, [], { onIssue: (issue) => issues.push(issue) })).map((item) => item.database)).toEqual(['first', 'second'])
     expect(api.queryData).toHaveBeenLastCalledWith(expect.objectContaining({ sql: expect.stringContaining('LIMIT 5000 OFFSET 1') }))
     expect(issues).toEqual([])
     api.queryData.mockResolvedValue({ dbType: 'mysql', columns: [{ name: 'database_name', dataType: 'varchar' }], rows: [['first']], truncated: true } as never)
@@ -93,25 +93,25 @@ describe('批量生成离线文档', () => {
       .mockRejectedValueOnce(new Error('second page unavailable'))
     const issues: BatchDiscoveryIssue[] = []
     const found = await discoverBatchTargets(bridge, [], { onIssue: (issue) => issues.push(issue) })
-    expect(found.map((item) => item.database)).toEqual(['shop', 'first_page_new'])
+    expect(found.map((item) => item.database)).toEqual(['first_page_new'])
     expect(issues[0].message).toContain('second page unavailable')
     expect(issues[0].message).toContain('未能完整读取')
   })
 
-  it('一个连接枚举失败不阻断其他连接，明确保留失败原因与已知库', async () => {
+  it('一个连接枚举失败不阻断其他连接，不将未确认的默认库加入任务', async () => {
     const { api, bridge, setConnections } = mockBridge()
     setConnections([{ ...target, connected: true }, { ...target, connectionId: 'b', database: undefined, connected: true }])
     api.queryData.mockRejectedValueOnce(new Error('PLUGIN_DATA_ACCESS_NOT_GRANTED'))
       .mockResolvedValueOnce({ dbType: 'mysql', columns: [{ name: 'database_name', dataType: 'varchar' }], rows: [['new_b']], truncated: false } as never)
     const issues: BatchDiscoveryIssue[] = []
     const found = await discoverBatchTargets(bridge, [], { onIssue: (issue) => issues.push(issue) })
-    expect(found.map((item) => [item.connectionId, item.database])).toEqual([['a', 'shop'], ['b', 'new_b']])
+    expect(found.map((item) => [item.connectionId, item.database])).toEqual([['b', 'new_b']])
     expect(issues).toHaveLength(1)
     expect(issues[0].connectionId).toBe('a')
     expect(issues[0].message).toContain('PLUGIN_DATA_ACCESS_NOT_GRANTED')
   })
 
-  it('基础会话关闭时只复用已知精确会话，取消检查后不再查询下一连接', async () => {
+  it('基础会话关闭时仅使用连接配置的默认库重试目录读取，取消后不再查询', async () => {
     const { api, bridge, setConnections } = mockBridge()
     api.queryData.mockRejectedValueOnce(new Error('Connection is not open'))
       .mockResolvedValueOnce({ dbType: 'mysql', columns: [{ name: 'database_name', dataType: 'varchar' }], rows: [['new_db']], truncated: false } as never)
@@ -129,6 +129,99 @@ describe('批量生成离线文档', () => {
     bridge.capabilities!.connectionsApi = false
     await expect(discoverBatchTargets(bridge, [])).rejects.toThrow('升级 DBX')
     expect(api.queryData).not.toHaveBeenCalled()
+  })
+
+  it('历史中混入表名时，仅同步实时目录确认的库，保留其他本地文档', async () => {
+    const { api, bridge, storage } = mockBridge()
+    const tableNames = ['tx_resource_member_rights_coupon', 'tx_resource_rights_coupon']
+    const documents = documentResources(groupConnections([
+      ...tableNames.map((database) => ({ ...target, database, ts: 1 })),
+      { ...target, database: 'shop', ts: 2 }
+    ]))
+    for (const database of tableNames) storage.set(offlineKey({ ...target, database }), JSON.stringify(oldDocument))
+    api.queryData.mockResolvedValueOnce({
+      dbType: 'mysql', columns: [{ name: 'database_name', dataType: 'varchar' }], rows: [['shop']], truncated: false
+    } as never)
+    const found = await discoverBatchTargets(bridge, documents)
+    expect(found.map((item) => item.database)).toEqual(['shop'])
+    expect((await refreshBatch(bridge, found, options())).map((item) => item.state)).toEqual(['success'])
+    expect(api.queryData.mock.calls.every(([request]) => !tableNames.includes(request.database ?? ''))).toBe(true)
+    for (const database of tableNames) {
+      expect(storage.get(offlineKey({ ...target, database }))).toBe(JSON.stringify(oldDocument))
+    }
+    expect((await loadRecent(bridge)).map((item) => item.database)).toEqual(['shop'])
+  })
+
+  it('默认库与历史记录均不能覆盖实时目录，完整空目录也不回退到旧名称', async () => {
+    const { api, bridge, storage } = mockBridge()
+    const documents = documentResources(groupConnections([{ ...target, database: 'old_name', ts: 1 }]))
+    api.queryData.mockResolvedValue({
+      dbType: 'mysql', columns: [{ name: 'database_name', dataType: 'varchar' }], rows: [], truncated: false
+    } as never)
+    const onIssue = vi.fn()
+    expect(await discoverBatchTargets(bridge, documents, { onIssue })).toEqual([])
+    expect(onIssue).not.toHaveBeenCalled()
+    expect(api.storageSet).not.toHaveBeenCalled()
+    expect(storage.get(key)).toBe(JSON.stringify(oldDocument))
+  })
+
+  it('部分目录只保留已确认的库，不补入历史名称或默认库', async () => {
+    const { api, bridge } = mockBridge()
+    const documents = documentResources(groupConnections([{ ...target, database: 'tx_resource_rights_coupon', ts: 1 }]))
+    api.queryData.mockResolvedValueOnce({
+      dbType: 'mysql', columns: [{ name: 'database_name', dataType: 'varchar' }], rows: [['confirmed']], truncated: true
+    } as never).mockRejectedValueOnce(new Error('page failed'))
+    const issues: BatchDiscoveryIssue[] = []
+    expect((await discoverBatchTargets(bridge, documents, { onIssue: (issue) => issues.push(issue) })).map((item) => item.database)).toEqual(['confirmed'])
+    expect(issues[0].message).toContain('仅生成目录已确认的数据库')
+    expect(api.storageSet).not.toHaveBeenCalled()
+  })
+
+  it('目录查询返回表名列时拒绝枚举，不使用历史中的表名兜底', async () => {
+    const { api, bridge } = mockBridge()
+    const documents = documentResources(groupConnections([{ ...target, database: 'tx_resource_rights_coupon', ts: 1 }]))
+    api.queryData.mockResolvedValue({
+      dbType: 'mysql', columns: [{ name: 'table_name', dataType: 'varchar' }], rows: [['tx_resource_rights_coupon']], truncated: false
+    } as never)
+    const issues: BatchDiscoveryIssue[] = []
+    expect(await discoverBatchTargets(bridge, documents, { onIssue: (issue) => issues.push(issue) })).toEqual([])
+    expect(issues[0].message).toContain('响应缺少库名')
+    expect(api.queryData).toHaveBeenCalledTimes(1)
+    expect(api.storageSet).not.toHaveBeenCalled()
+  })
+
+  it('基础会话关闭且没有默认库时，不尝试连接历史记录中的名称', async () => {
+    const { api, bridge, setConnections } = mockBridge()
+    setConnections([{ ...target, database: undefined, connected: true }])
+    const documents = documentResources(groupConnections([{ ...target, database: 'tx_resource_rights_coupon', ts: 1 }]))
+    api.queryData.mockRejectedValue(new Error('Connection is not open'))
+    const issues: BatchDiscoveryIssue[] = []
+    expect(await discoverBatchTargets(bridge, documents, { onIssue: (issue) => issues.push(issue) })).toEqual([])
+    expect(api.queryData).toHaveBeenCalledTimes(1)
+    expect(api.queryData.mock.calls[0][0]).not.toHaveProperty('database')
+    expect(issues[0].message).toContain('Connection is not open')
+  })
+
+  it('不支持目录读取的类型不探测历史名称或生成未经确认的任务', async () => {
+    const { api, bridge, setConnections } = mockBridge()
+    setConnections([{ ...target, dbType: 'sqlite', connected: true }])
+    const documents = documentResources(groupConnections([{ ...target, ts: 1 }]))
+    const issues: BatchDiscoveryIssue[] = []
+    expect(await discoverBatchTargets(bridge, documents, { onIssue: (issue) => issues.push(issue) })).toEqual([])
+    expect(issues[0].message).toContain('暂不支持')
+    expect(api.queryData).not.toHaveBeenCalled()
+    expect(api.storageSet).not.toHaveBeenCalled()
+  })
+
+  it('目录确认的合法库名即使与历史表名相同也正常生成，不按名称猜测对象类型', async () => {
+    const { api, bridge } = mockBridge()
+    const database = 'tx_resource_rights_coupon'
+    api.queryData.mockResolvedValueOnce({
+      dbType: 'mysql', columns: [{ name: 'database_name', dataType: 'varchar' }], rows: [[database]], truncated: false
+    } as never)
+    const found = await discoverBatchTargets(bridge, [])
+    expect(found.map((item) => item.database)).toEqual([database])
+    expect((await refreshBatch(bridge, found, options()))[0].state).toBe('success')
   })
 
   it('每个库整库成功后才替换缓存并报告成功时间，不提前保存表详情', async () => {
@@ -183,6 +276,22 @@ describe('批量生成离线文档', () => {
     expect(results.map((item) => item.state)).toEqual(['failed', 'success'])
     expect(api.queryData.mock.calls).toHaveLength(2)
     expect(callbacks.onCommitted).toHaveBeenCalledTimes(1)
+  })
+
+  it('目录确认的真实数据库仍无访问权限时保留缓存及成功时间，并继续其他库', async () => {
+    const { bridge, api, storage } = mockBridge()
+    api.queryData.mockResolvedValueOnce({
+      dbType: 'mysql', columns: [{ name: 'database_name', dataType: 'varchar' }], rows: [['shop'], ['other']], truncated: false
+    } as never).mockRejectedValueOnce(new Error("MySQL connection failed: ERROR 1044 (42000): Access denied to database 'shop'"))
+    const found = await discoverBatchTargets(bridge, [])
+    const callbacks = options()
+    const results = await refreshBatch(bridge, found, callbacks)
+    expect(results.map((item) => item.state)).toEqual(['failed', 'success'])
+    expect(results[0].message).toContain('ERROR 1044')
+    expect(results[0].message).toContain('保留原缓存')
+    expect(storage.get(key)).toBe(JSON.stringify(oldDocument))
+    expect(callbacks.onCommitted).toHaveBeenCalledTimes(1)
+    expect(callbacks.onCommitted).toHaveBeenCalledWith({ ...target, database: 'other' })
   })
 
   it('停止时完整提交当前库，后续库不再查询或保存', async () => {

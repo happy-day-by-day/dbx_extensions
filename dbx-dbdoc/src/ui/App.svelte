@@ -13,6 +13,9 @@
   import { createAppState } from './state.svelte'
   import Catalog from './components/Catalog.svelte'
   import Detail from './components/Detail.svelte'
+  import MultiTableDetail from './components/MultiTableDetail.svelte'
+  import type { AppState } from './state.svelte'
+  import type { TableDetail } from '../lib/markdown'
   import EmptyState from './components/EmptyState.svelte'
   import ExportDialog from './components/ExportDialog.svelte'
   import Guide from './components/Guide.svelte'
@@ -37,6 +40,7 @@
   let cachedTableCount = $state(0)
   let syncSeq = 0
   let sqlOpen = $state(false)
+  let dialogState = $state.raw<AppState | null>(null)
   let exportOpen = $state(false)
   let snapshotOpen = $state(false)
   let snapshotChanged = $state(0)
@@ -46,6 +50,8 @@
   let hostInitialized = $state(false)
   let exportMode = $state<'table' | 'schema'>('table')
   let sidebarWidth = $state(304)
+  let detailDense = $state(false)
+  let densityWrite = Promise.resolve()
   let bootSeq = 0
   let catalogSeq = 0
   let disposed = false
@@ -267,6 +273,8 @@
       app.ctx.dbType = ctx.dbType
       void rememberConnection(getBridge(), ctx).catch(() => undefined)
       if (ctx.table) {
+        // An explicit host table-document action opens its single-table target.
+        app.setMultiTableMode(false)
         const row = targetRow(ctx, app.catalog)
         if (row) app.navigateTable(row.table_schema, row.table_name, 'columns')
         else { app.navigateTable(ctx.schema ?? null, ctx.table, 'columns'); app.ctxTargetTable = ctx.table }
@@ -319,8 +327,13 @@
         return
       }
       await bridge.getSnapshotDirectoryStatus?.()
-      const width = Number(await bridge.storageGet('dbdoc.sidebarWidth').catch(() => null))
+      const [savedWidth, savedDensity] = await Promise.all([
+        bridge.storageGet('dbdoc.sidebarWidth').catch(() => null),
+        bridge.storageGet('dbdoc.detailDense').catch(() => null)
+      ])
+      const width = Number(savedWidth)
       if (width >= 224 && width <= 520) sidebarWidth = width
+      detailDense = savedDensity === 'true'
       const ctx = await bridge.getContext()
       if (disposed) return
       lastHostContext = { ...(pendingContext ?? ctx ?? {}) }
@@ -360,7 +373,7 @@
 
   // 依赖变更立即使旧请求失效；异步加载只消费派发时的上下文快照。
   $effect(() => {
-    if (queryMode) return
+    if (queryMode || app.multiTableMode) return
     const table = app.selectedTable
     const schema = app.selectedSchema ?? ''
     const connectionId = app.ctx.connectionId
@@ -428,8 +441,28 @@
     pickerOpen = false
     if (pickerCacheChanged) { pickerCacheChanged = false; void boot() }
   }
-  function openExport(mode: 'table' | 'schema') { exportMode = mode; exportOpen = true }
+  async function loadMultiTable(table: DbTable): Promise<TableDetail> {
+    if (app.offline) {
+      const entry = offlineDocument?.details[offlineTableKey(table.table_schema, table.table_name)]
+      if (!entry) throw new Error('此表尚无完整本地文档，请点击顶部「刷新」重新同步全部表。')
+      return { ...entry.value, table: { ...entry.value.table, ...table } }
+    }
+    const bridge = getBridge(), adapter = getAdapter(app.dbType)
+    const ctx = { ...app.ctx }
+    if (!bridge || !adapter || !ctx.connectionId) throw new Error('当前数据库文档暂不可用，请重新打开后重试')
+    const detail = await loadDetail(bridge, adapter, ctx.connectionId, refOf(ctx), table.table_schema, table.table_name, cache)
+    return { ...detail, table: { ...detail.table, ...table, column_count: detail.columns.length } }
+  }
+  function openSql(target: AppState = app) { dialogState = target; sqlOpen = true }
+  function openExport(mode: 'table' | 'schema', target: AppState = app) { dialogState = target; exportMode = mode; exportOpen = true }
   function saveSidebar() { void getBridge()?.storageSet('dbdoc.sidebarWidth', String(sidebarWidth)).catch(() => undefined) }
+  function setDetailDensity(dense: boolean) {
+    detailDense = dense
+    const bridge = getBridge()
+    if (!bridge) return
+    // Serialize rapid toggles so an older write cannot overwrite the latest choice.
+    densityWrite = densityWrite.then(() => bridge.storageSet('dbdoc.detailDense', String(dense))).catch(() => undefined)
+  }
   $effect(() => {
     if (queryMode) return
     const title = databaseDocumentTitle(app.ctx)
@@ -483,14 +516,17 @@
         <EmptyState icon="refresh" title="尚无本地文档" description="请在 DBX 中连接并打开目标数据库，然后点击「刷新」创建全库离线文档。之后打开文档将直接使用缓存。" actionLabel="刷新并同步文档" onaction={() => void refreshCatalog()} />
       {:else if app.phase === 'loading-catalog'}
         <div class="boot" role="status"><span class="spinner"></span>正在读取表清单…</div>
+      {:else if app.multiTableMode}
+        <MultiTableDetail state={app} sourceVersion={offlineVersion + app.revision} dense={detailDense} ondensitychange={setDetailDensity} load={loadMultiTable}
+          onsql={openSql} onexport={(target) => openExport('table', target)} onrefresh={() => void refreshCatalog()} />
       {:else}
-        <Detail state={app} onsql={() => (sqlOpen = true)} onexport={() => openExport('table')} onretry={retryDetail} />
+        <Detail state={app} dense={detailDense} ondensitychange={setDetailDensity} onsql={() => openSql()} onexport={() => openExport('table')} onretry={retryDetail} />
       {/if}
     </div>
   </div>
 {/if}
-{#if sqlOpen}<SqlDialog state={app} onclose={() => (sqlOpen = false)} />{/if}
-{#if exportOpen}<ExportDialog state={app} initialMode={exportMode} getOfflineDocument={() => offlineDocument} onclose={() => (exportOpen = false)} />{/if}
+{#if sqlOpen}<SqlDialog state={dialogState ?? app} onclose={() => (sqlOpen = false)} />{/if}
+{#if exportOpen}<ExportDialog state={dialogState ?? app} initialMode={exportMode} getOfflineDocument={() => offlineDocument} onclose={() => (exportOpen = false)} />{/if}
 {#if pickerOpen}<div class="resource-overlay"><Guide onsnapshot={() => snapshotOpen = true} {snapshotChanged} context={{ ...app.ctx, dbType: app.dbType }}
   diagnostics={app.diagMessage || null} onopen={chooseResource} syncBlocked={app.catalogRefreshing || syncBusy} oncacheupdated={(target) => { if (target.connectionId === app.ctx.connectionId && target.database === app.ctx.database) pickerCacheChanged = true }} onclose={closeResourcePicker} returnLabel={app.phase === 'ready' ? '返回文档' : '返回'} /></div>{/if}
 

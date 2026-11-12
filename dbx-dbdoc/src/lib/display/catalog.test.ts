@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DbTable } from '../dialects/entities'
-import { selectCatalogTables, virtualRange, type CatalogOptions } from './catalog'
+import { selectCatalogTables, selectedCatalogTables, virtualRange, type CatalogOptions } from './catalog'
 import { groupRows } from './groups'
 import { tableSearchKey } from './columnSearch'
 
@@ -35,5 +35,23 @@ describe('目录搜索和虚拟滚动', () => {
     const groups = groupRows([{ name: 'idx', seq: 2 }, { name: 'idx', seq: 1 }, { name: 'other', seq: 1 }], (row) => row.name)
     expect(groups).toHaveLength(2)
     expect(groups[0].rows.map((row) => row.seq)).toEqual([1, 2])
+  })
+})
+
+
+describe('多表文档排序', () => {
+  it('按目录顺序而非勾选顺序展示，并保持原目录与选择不变', () => {
+    const selected = new Set([tableSearchKey('public', 'users'), tableSearchKey('audit', 'logs')])
+    expect(selectedCatalogTables(tables, selected, 'name').map(table => table.table_name)).toEqual(['logs', 'users'])
+    expect(selectedCatalogTables(tables, selected, 'columns').map(table => table.table_name)).toEqual(['logs', 'users'])
+    expect([...selected]).toEqual([tableSearchKey('public', 'users'), tableSearchKey('audit', 'logs')])
+    expect(tables[0].table_name).toBe('orders')
+  })
+  it('跨 Schema 同名表分别选择，消失的表不会生成空文档', () => {
+    const duplicated = [...tables, { ...tables[0], table_schema: 'sales', column_count: 8 }]
+    const selected = new Set([tableSearchKey('sales', 'orders'), tableSearchKey('missing', 'orders'), tableSearchKey('public', 'users')])
+    expect(selectedCatalogTables(duplicated, selected, 'name').map(table => [table.table_schema, table.table_name])).toEqual([['sales', 'orders'], ['public', 'users']])
+    expect(selectedCatalogTables(duplicated, selected, 'columns').map(table => table.column_count)).toEqual([8, 2])
+    expect(selectedCatalogTables(duplicated, new Set(), 'name')).toEqual([])
   })
 })

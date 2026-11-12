@@ -32,3 +32,10 @@ export function virtualRange(count: number, scrollTop: number, height: number, r
   const end = Math.min(count, top + visibleCount + 4)
   return { start, end, before: start * rowHeight, after: Math.max(0, count - end) * rowHeight }
 }
+
+// Selection survives directory filters; schema participates in table identity.
+export function selectedCatalogTables(tables: DbTable[], keys: Set<string>, sort: CatalogOptions['sort']): DbTable[] {
+  return selectCatalogTables(tables.filter(table => keys.has(tableSearchKey(table.table_schema, table.table_name))), {
+    keyword: '', regexMode: false, schema: null, columnHits: new Set(), uncommented: false, sort
+  })
+}

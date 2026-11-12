@@ -1,0 +1,121 @@
+{
+  "date": "2026-11-12",
+  "version": "0.4.32",
+  "scope": "compact single/multi-table controls and multi-table layout",
+  "svelteCheck": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "build": true,
+  "browser": {
+    "environment": "Chrome with mock DBX host and seeded offline snapshots",
+    "before": [
+      {
+        "width": 1280,
+        "modeHeight": 36,
+        "catalogToolsHeight": 253.5,
+        "tableTopFromCard": 156.5,
+        "cardWidth": 939,
+        "documentWidth": 971,
+        "horizontalOverflow": false
+      },
+      {
+        "width": 900,
+        "modeHeight": 36,
+        "catalogToolsHeight": 253.5,
+        "tableTopFromCard": 156.5,
+        "cardWidth": 559,
+        "documentWidth": 591,
+        "horizontalOverflow": false
+      },
+      {
+        "width": 720,
+        "modeHeight": 36,
+        "catalogToolsHeight": 256,
+        "tableTopFromCard": 156.5,
+        "cardWidth": 700,
+        "documentWidth": 720,
+        "horizontalOverflow": false
+      },
+      {
+        "width": 390,
+        "modeHeight": 36,
+        "catalogToolsHeight": 256,
+        "tableTopFromCard": 190.5,
+        "cardWidth": 370,
+        "documentWidth": 390,
+        "horizontalOverflow": false
+      }
+    ],
+    "after": [
+      {
+        "width": 1280,
+        "modeHeight": 22,
+        "catalogToolsHeight": 175,
+        "tableTopFromCard": 77,
+        "cardWidth": 971,
+        "documentWidth": 971,
+        "horizontalOverflow": false
+      },
+      {
+        "width": 900,
+        "modeHeight": 22,
+        "catalogToolsHeight": 175,
+        "tableTopFromCard": 77,
+        "cardWidth": 591,
+        "documentWidth": 591,
+        "horizontalOverflow": false
+      },
+      {
+        "width": 720,
+        "modeHeight": 22,
+        "catalogToolsHeight": 175,
+        "tableTopFromCard": 77,
+        "cardWidth": 720,
+        "documentWidth": 720,
+        "horizontalOverflow": false
+      },
+      {
+        "width": 390,
+        "modeHeight": 22,
+        "catalogToolsHeight": 175,
+        "tableTopFromCard": 129.5,
+        "cardWidth": 390,
+        "documentWidth": 390,
+        "horizontalOverflow": false
+      }
+    ],
+    "regression": {
+      "passed": true,
+      "checks": [
+        "directory ordering",
+        "cross-schema identity",
+        "independent tabs and search",
+        "correct per-table SQL/export",
+        "selection preserved through filters",
+        "keyboard checkbox",
+        "unique tab IDs",
+        "lazy rendering",
+        "isolated missing cache",
+        "no overlap",
+        "four viewport widths",
+        "single-table restoration",
+        "density retained",
+        "foreign key adds and locates referenced table",
+        "explicit host table action",
+        "resource switch clears mode"
+      ],
+      "queries": 0,
+      "pageErrors": []
+    },
+    "tableInfoExpandAndEscapeClose": true,
+    "themesVisuallyChecked": [
+      "light",
+      "dark"
+    ]
+  },
+  "unitTests": {
+    "passed": 286,
+    "files": 25
+  }
+}

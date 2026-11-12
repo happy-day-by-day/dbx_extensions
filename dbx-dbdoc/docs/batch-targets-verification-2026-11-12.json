@@ -1,0 +1,21 @@
+{
+  "version": "0.4.35",
+  "passed": true,
+  "environment": "Chrome headless + 模拟 DBX 数据接口 + 包内 darwin-arm64 快照后端",
+  "actualDatabaseConnectionTested": false,
+  "checks": [
+    "完整目录排除混入历史及默认库的两个表名",
+    "已确认库完整同步写入真实快照后端",
+    "排除项旧缓存及成功时间保持不变",
+    "空目录不回退历史名称",
+    "目录失败不创建未确认任务且保留快照",
+    "表名响应不会变成数据库任务",
+    "部分目录只生成已确认库并说明原因",
+    "真实库1044保留最后完整缓存及成功时间并继续下一库",
+    "所有查询均未使用两个表名作为目标库",
+    "浏览器无运行时异常"
+  ],
+  "sqlQueries": 25,
+  "invalidDatabaseQueries": 0,
+  "pageErrors": []
+}

@@ -8,16 +8,16 @@
   import { compileFilterPattern } from '../../lib/display/filters'
   import { groupRows } from '../../lib/display/groups'
   import { maskUuids } from '../../lib/display/masking'
-  import { databaseIndexDirection, databaseIndexDisplayTitle, databaseIndexKindLabel } from '../../lib/display/indexDisplay'
+  import { databaseIndexAlgorithm, databaseIndexDirection, databaseIndexDisplayTitle, databaseIndexKind, databaseIndexKindLabel, databaseIndexMatches } from '../../lib/display/indexDisplay'
   import { databaseTypeKindLabel, typeCssClass } from '../../lib/display/typeDisplay'
   import EmptyState from './EmptyState.svelte'
   import Icon from './Icon.svelte'
 
-  let { state: app, onsql, onexport, onretry }: { state: AppState; onsql: () => void; onexport: () => void; onretry: () => void } = $props()
+  let { state: app, dense, ondensitychange, embedded = false, instanceId = 'detail', onreferenced, onsql, onexport, onretry }: { state: AppState; embedded?: boolean; instanceId?: string; onreferenced?: (schema: string, table: string) => void; dense: boolean; ondensitychange: (dense: boolean) => void; onsql: () => void; onexport: () => void; onretry: () => void } = $props()
   const tab = $derived(app.detailTab)
   let keyword = $state('')
+  let indexKeyword = $state('')
   let uncommented = $state(false)
-  let dense = $state(false)
   let copyMessage = $state('')
   let infoExpanded = $state(false)
   let copyTimer: ReturnType<typeof setTimeout> | undefined
@@ -27,10 +27,13 @@
   let degradedNonce = $state(0)
   let body = $state<HTMLDivElement>()
   let fieldSearchInput = $state<HTMLInputElement>()
+  let indexSearchInput = $state<HTMLInputElement>()
   const columns = $derived(app.degraded ? degradedColumns : app.detail?.columns ?? [])
   const indexGroups = $derived(groupRows(app.detail?.indexes ?? [], (row) => row.index_name))
   const constraintGroups = $derived(groupRows(app.detail?.constraints ?? [], (row) => row.constraint_name))
   const pattern = $derived(compileFilterPattern(keyword.trim()).regex)
+  const indexPattern = $derived(compileFilterPattern(indexKeyword.trim()).regex)
+  const filteredIndexGroups = $derived(indexGroups.filter((group) => databaseIndexMatches(group.rows, indexKeyword)))
   // 目录关键词只参与高亮；字段过滤只使用右侧手动输入的关键词。
   const fieldHighlightPattern = $derived(compileFilterPattern(keyword.trim() || (!app.catalogSearch.regexMode ? app.catalogSearch.keyword : '')).regex)
   const tablePattern = $derived(compileFilterPattern(app.catalogSearch.keyword, app.catalogSearch.regexMode).regex)
@@ -53,7 +56,7 @@
 
   $effect(() => {
     app.selectedTable; app.selectedSchema; app.ctx.connectionId; app.ctx.database
-    keyword = ''; uncommented = false; infoExpanded = false
+    keyword = ''; indexKeyword = ''; uncommented = false; infoExpanded = false
     if (body) body.scrollTop = 0
   })
   $effect(() => {
@@ -84,6 +87,7 @@
   function openReferenced(schema: string, table: string) {
     const found = app.catalog.find((row) => row.table_name === table && row.table_schema === schema)
     if (!found) return
+    if (onreferenced) { onreferenced(schema, table); return }
     app.navigateTable(schema, table, 'columns')
   }
   function switchTab(next: typeof tab) { app.detailTab = next; if (body) body.scrollTop = 0 }
@@ -95,20 +99,36 @@
   if (event.key === 'Escape' && infoExpanded && !body?.closest('[inert]')) {
     infoExpanded = false; event.preventDefault(); return
   }
-  if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.isComposing
+  if (embedded || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.isComposing
     || body?.closest('[inert]') || (event.target instanceof HTMLElement && event.target.closest('input,textarea,select,[contenteditable="true"]'))) return
   if (event.key === 'ArrowLeft' && app.canGoBack) { event.preventDefault(); app.goBack() }
   else if (event.key === 'ArrowRight' && app.canGoForward) { event.preventDefault(); app.goForward() }
 }} />
 
-<section class="detail" aria-label="表文档" aria-busy={loading}>
+{#snippet fieldTools()}
+  <div class="fields-toolbar"><div class="field-search"><Icon name="search" size={15} /><input bind:this={fieldSearchInput} type="search" aria-label="搜索当前表字段" placeholder="搜索字段名、类型或注释…" bind:value={keyword} />{#if keyword}<button class="icon-btn" aria-label="清空字段搜索" title="显示全部字段" onclick={() => { keyword = ''; fieldSearchInput?.focus() }}><Icon name="close" size={13} /></button>{/if}</div>
+            {#if !app.degraded}<label><input type="checkbox" bind:checked={uncommented} />仅无注释</label>{/if}
+            <div class="field-options">{#if !embedded || keyword || uncommented}<span>{filteredColumns.length} / {columns.length} 个字段</span>{/if}<button class="density-btn" class:chosen={dense} aria-pressed={dense} onclick={() => ondensitychange(!dense)}><Icon name="grid" size={14} />紧凑</button></div>
+          </div>
+{/snippet}
+
+{#snippet indexTools()}
+  <div class="fields-toolbar index-tools">
+    <div class="field-search"><Icon name="search" size={15} /><input bind:this={indexSearchInput} type="search" aria-label="搜索当前表索引" placeholder="搜索索引名、字段或注释…" bind:value={indexKeyword} />
+      {#if indexKeyword}<button class="icon-btn" aria-label="清空索引搜索" title="显示全部索引" onclick={() => { indexKeyword = ''; indexSearchInput?.focus() }}><Icon name="close" size={13} /></button>{/if}
+    </div>
+    <div class="field-options"><span role="status">{filteredIndexGroups.length} / {indexGroups.length} 个索引</span><button class="density-btn" class:chosen={dense} aria-pressed={dense} onclick={() => ondensitychange(!dense)}><Icon name="grid" size={14} />紧凑</button></div>
+  </div>
+{/snippet}
+
+<section class="detail" class:embedded aria-label={embedded ? `表文档 ${fullName}` : '表文档'} aria-busy={loading}>
   {#if !app.selectedTable}
     <EmptyState icon="table" title="选择一张表开始浏览" description="在目录中搜索表名或业务注释，查看字段、索引和约束。" />
   {:else}
     <header class="detail-header">
       <div class="detail-title-row"><div class="table-identity"><h1 title={fullName}>{#each splitHighlight(app.selectedTable, tablePattern) as part}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</h1>
         <button class="icon-btn" title="复制完整表名" aria-label="复制完整表名" onclick={() => void copy(fullName)}><Icon name="copy" size={15} /></button></div>
-        <div class="table-navigation" role="group" aria-label="表浏览历史"><button class="icon-btn" aria-label="返回上一张表" title="返回上一张表（Alt + ←）" disabled={!app.canGoBack} onclick={() => app.goBack()}><Icon name="back" size={15} /></button><button class="icon-btn" aria-label="前进到下一张表" title="前进到下一张表（Alt + →）" disabled={!app.canGoForward} onclick={() => app.goForward()}><Icon name="arrow" size={15} /></button></div>
+        {#if !embedded}<div class="table-navigation" role="group" aria-label="表浏览历史"><button class="icon-btn" aria-label="返回上一张表" title="返回上一张表（Alt + ←）" disabled={!app.canGoBack} onclick={() => app.goBack()}><Icon name="back" size={15} /></button><button class="icon-btn" aria-label="前进到下一张表" title="前进到下一张表（Alt + →）" disabled={!app.canGoForward} onclick={() => app.goForward()}><Icon name="arrow" size={15} /></button></div>{/if}
         {#if !app.degraded}<div class="detail-actions"><button class="btn" aria-label="建表 SQL" title="建表 SQL" onclick={onsql} disabled={!app.detail || loading}><Icon name="code" size={15} /><span>建表 SQL</span></button>
           <button class="btn" aria-label="导出本表" title="导出本表" onclick={onexport} disabled={!app.detail || loading}><Icon name="export" size={15} /><span>导出本表</span></button></div>{/if}
       </div>
@@ -132,20 +152,21 @@
     {#if app.degraded}<div class="notice">{app.dbType} 当前只提供基础字段，注释、索引和约束不可用。</div>{/if}
     {#if error && !loading}<div class="detail-errorbar" role="alert"><span>{isConnectionNotOpen(error) ? '当前数据库会话已关闭。请在 DBX 中重新连接并打开目标数据库，然后重试。' : maskUuids(error)}</span><button class="btn" onclick={() => app.degraded ? degradedNonce += 1 : onretry()}>重试</button></div>{/if}
     {#if app.detail?.warnings?.length}<div class="notice" role="status">{#each app.detail.warnings as warning}<div>{maskUuids(warning)}</div>{/each}</div>{/if}
+    <div class="detail-controls">
     <div class="detail-tabs" role="tablist" aria-label="表结构类型">
       {#each [{ id: 'columns', label: '字段', count: columns.length }, { id: 'indexes', label: '索引', count: indexGroups.length }, { id: 'constraints', label: '约束', count: constraintGroups.length }] as item}
-        <button role="tab" id={`tab-${item.id}`} aria-selected={tab === item.id} aria-controls="detail-content" class:tab-active={tab === item.id}
+        <button role="tab" id={`${instanceId}-tab-${item.id}`} aria-selected={tab === item.id} aria-controls={`${instanceId}-content`} class:tab-active={tab === item.id}
           disabled={app.degraded && item.id !== 'columns'} onclick={() => switchTab(item.id as typeof tab)}>{item.label}<span>{item.count}</span></button>
       {/each}
     </div>
-    <div class="detail-body" class:fields-content={tab === 'columns' && loaded && !loading} bind:this={body} id="detail-content" role="tabpanel" aria-labelledby={`tab-${tab}`} tabindex="0">
+    {#if embedded && tab === 'columns' && loaded && !loading}{@render fieldTools()}{/if}
+    {#if embedded && tab === 'indexes' && loaded && !loading && indexGroups.length}{@render indexTools()}{/if}
+    </div>
+    <div class="detail-body" class:fields-content={(tab === 'columns' || tab === 'indexes') && loaded && !loading} bind:this={body} id={`${instanceId}-content`} role="tabpanel" aria-labelledby={`${instanceId}-tab-${tab}`} tabindex="0">
       {#if loading}<div class="detail-skeleton" role="status"><span class="spinner"></span>正在读取 {app.selectedTable} 的表结构…<div></div><div></div><div></div><div></div></div>
       {:else if loaded}
         {#if tab === 'columns'}
-          <div class="fields-toolbar"><div class="field-search"><Icon name="search" size={15} /><input bind:this={fieldSearchInput} type="search" aria-label="搜索当前表字段" placeholder="搜索字段名、类型或注释…" bind:value={keyword} />{#if keyword}<button class="icon-btn" aria-label="清空字段搜索" title="显示全部字段" onclick={() => { keyword = ''; fieldSearchInput?.focus() }}><Icon name="close" size={13} /></button>{/if}</div>
-            {#if !app.degraded}<label><input type="checkbox" bind:checked={uncommented} />仅无注释</label>{/if}
-            <div class="field-options"><span>{filteredColumns.length} / {columns.length} 个字段</span><button class="density-btn" class:chosen={dense} aria-pressed={dense} onclick={() => dense = !dense}><Icon name="grid" size={14} />紧凑</button></div>
-          </div>
+          {#if !embedded}{@render fieldTools()}{/if}
           {#if filteredColumns.length}
             <!-- 可滚动表格需要焦点以支持方向键 / PageDown，保留内部原生表格语义。 -->
             <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -161,21 +182,37 @@
                   <td><span class:nullable={column.is_nullable === 'YES'} class="nullability">{column.is_nullable === 'YES' ? '是' : '否'}</span></td>
                   <td class="default-cell" title={column.column_default ?? ''}><code>{#each splitHighlight(column.column_default === '' ? "''" : column.column_default ?? '—', pattern) as part}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</code></td>
                   {#if !app.degraded}<td>{#each indexesByColumn.get(column.column_name) ?? [] as group (group.name)}
-                    <button class="index-chip" class:primary={group.first.is_primary} title={databaseIndexDisplayTitle(group.first)} onclick={() => switchTab('indexes')}>{databaseIndexKindLabel(group.first)}</button>
+                    <button class="index-chip" class:primary={group.first.is_primary} title={databaseIndexDisplayTitle(group.first)} onclick={() => { indexKeyword = group.name; switchTab('indexes') }}>{databaseIndexKindLabel(group.first)}</button>
                   {/each}</td><td class="comment-cell">{#if column.column_comment}{#each splitHighlight(column.column_comment, fieldHighlightPattern) as part}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}{:else}<span class="muted">—</span>{/if}</td>{/if}
                 </tr>
               {/each}</tbody>
             </table></div>
           {:else}<div class="section-empty">{columns.length ? '没有匹配的字段' : '暂无字段信息'}</div>{/if}
         {:else if tab === 'indexes'}
-          {#if !indexGroups.length}<div class="section-empty">暂无索引</div>{/if}
-          {#each indexGroups as group (group.name)}
-            <article class="structure-card"><div class="structure-heading"><h2>{group.name}</h2><span class="index-chip" class:primary={group.first.is_primary}>{databaseIndexKindLabel(group.first)}</span><span class="muted">{group.first.index_type}</span></div>
-              <div class="index-columns">{#each group.rows as row, i}<code>{row.is_included ? 'INCLUDE ' : ''}{row.expression || row.column_name}{row.sub_part ? `(${row.sub_part})` : ''}</code><span class="muted">{databaseIndexDirection(row)}</span>{#if i < group.rows.length - 1}<span class="muted">,</span>{/if}{/each}</div>
-              {#if group.first.predicate}<p class="muted"><code>WHERE {group.first.predicate}</code></p>{/if}
-              {#if group.first.index_comment}<p>{group.first.index_comment}</p>{/if}
-            </article>
-          {/each}
+          {#if !embedded && indexGroups.length}{@render indexTools()}{/if}
+          {#if filteredIndexGroups.length}
+            <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+            <div class="table-scroll" role="region" aria-label="索引列表" tabindex="0">
+              <table class="detail-table index-table" class:dense aria-label="表索引">
+                <thead><tr><th scope="col">索引名称</th><th scope="col">类型</th><th scope="col">索引字段</th><th scope="col">索引方法</th><th scope="col">注释</th></tr></thead>
+                <tbody>{#each filteredIndexGroups as group (group.name)}
+                  {@const keyRows = group.rows.filter((row) => !row.is_included)}
+                  {@const includedRows = group.rows.filter((row) => row.is_included)}
+                  <tr>
+                    <td><div class="index-name"><code>{#each splitHighlight(group.name || '未命名索引', indexPattern) as part}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</code><button class="icon-btn" title="复制索引名" aria-label={`复制索引名 ${group.name}`} onclick={() => void copy(group.name)}><Icon name="copy" size={13} /></button></div></td>
+                    <td><span class="index-kind" class:primary={databaseIndexKind(group.first) === 'primary'} class:unique={databaseIndexKind(group.first) === 'unique'}>{databaseIndexKindLabel(group.first)}</span>{#if group.first.is_unique_constraint}<span class="index-note">唯一约束</span>{/if}</td>
+                    <td>
+                      {#if keyRows.length}<ol class="index-key-columns" aria-label="索引键字段">{#each keyRows as row, i}<li><span class="index-position" aria-hidden="true">{i + 1}</span><code>{#each splitHighlight(`${row.expression || row.column_name || '—'}${row.sub_part ? `(${row.sub_part})` : ''}`, indexPattern) as part}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</code>{#if databaseIndexDirection(row)}<span class="index-direction">{databaseIndexDirection(row)}</span>{/if}</li>{/each}</ol>{:else}<span class="muted">—</span>{/if}
+                      {#if includedRows.length}<div class="index-extra"><span title="包含字段，不参与索引键排序">INCLUDE</span><code>{#each splitHighlight(includedRows.map((row) => row.column_name).join(', '), indexPattern) as part}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</code></div>{/if}
+                      {#if group.first.predicate}<div class="index-extra"><span title="索引过滤条件">WHERE</span><code>{#each splitHighlight(group.first.predicate, indexPattern) as part}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</code></div>{/if}
+                    </td>
+                    <td class="index-method"><code>{databaseIndexAlgorithm(group.first)}</code></td>
+                    <td class="index-comment">{#if group.first.index_comment}{#each splitHighlight(group.first.index_comment, indexPattern) as part}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}{:else}<span class="muted">—</span>{/if}</td>
+                  </tr>
+                {/each}</tbody>
+              </table>
+            </div>
+          {:else}<div class="section-empty">{indexGroups.length ? '没有匹配的索引' : '暂无索引'}</div>{/if}
         {:else}
           {#if app.detail?.checksSupported === false}<p class="muted">当前数据库版本不提供检查约束元数据。</p>{/if}
           {#if !constraintGroups.length}<div class="section-empty">{app.detail?.checksSupported === false ? '暂无外键' : '暂无外键或检查约束'}</div>{/if}
@@ -198,6 +235,10 @@
 
 <style>
   .detail { display: flex; flex-direction: column; position: relative; min-height: 0; overflow: hidden; background: var(--panel); }
+  .detail.embedded { overflow: visible; flex: none; min-width: 0; }
+  .embedded .detail-body, .embedded .detail-body.fields-content { flex: none; overflow: visible; }
+  .embedded .table-scroll { flex: none; overflow-x: auto; }
+  .detail-controls { flex: none; }
   .detail-header { flex: none; padding: 10px 20px 8px; }
   .detail-title-row { display: flex; gap: 10px; align-items: center; min-height: 30px; }
   .table-identity { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }.table-identity .icon-btn { flex: none; }
@@ -245,7 +286,26 @@
   .structure-card { padding: 20px; border: 1px solid var(--border); border-radius: 11px; margin-bottom: 12px; }
   .structure-heading { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
   h2 { margin: 0; font: 600 13px var(--mono); overflow-wrap: anywhere; }
-  .index-columns, .constraint-relation { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .constraint-relation { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .index-table { table-layout: fixed; min-width: 720px; }
+  .index-table th:first-child, .index-table td:first-child { width: 23%; text-align: left; color: var(--text); white-space: normal; }
+  .index-table th:nth-child(2) { width: 10%; }.index-table th:nth-child(3) { width: 34%; }.index-table th:nth-child(4) { width: 12%; }.index-table th:nth-child(5) { width: 21%; }
+  .index-table th:first-child { color: var(--muted); }
+  .index-name { display: flex; align-items: flex-start; gap: 4px; }
+  .index-name code { min-width: 0; overflow-wrap: anywhere; font-size: 12px; font-weight: 500; }
+  .index-name .icon-btn { flex: none; min-width: 20px; min-height: 20px; padding: 2px; margin-top: -2px; }
+  .index-kind { white-space: nowrap; color: var(--muted); font-size: 11px; }.index-kind.primary { color: var(--accent); }.index-kind.unique { color: var(--yes-text); }
+  .index-note { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; white-space: nowrap; }
+  .index-key-columns { display: flex; flex-direction: column; gap: 4px; padding: 0; margin: 0; list-style: none; }
+  .index-key-columns li { display: flex; align-items: baseline; gap: 7px; }
+  .index-key-columns code { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; font-size: 12px; }
+  .index-position { flex: none; min-width: 12px; color: var(--muted); font: 10px var(--mono); }
+  .index-direction { flex: none; margin-left: auto; color: var(--muted); font: 10px var(--mono); }
+  .index-extra { display: flex; align-items: baseline; gap: 7px; margin-top: 6px; color: var(--muted); }
+  .index-extra > span { flex: none; min-width: 47px; font: 10px var(--mono); }
+  .index-extra code { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .index-method { overflow-wrap: anywhere; font-size: 11px; color: var(--muted); }
+  .index-comment { overflow-wrap: anywhere; white-space: pre-wrap; }
   .structure-card p { font-size: 12px; margin: 10px 0 0; }.structure-card pre { white-space: pre-wrap; overflow-wrap: anywhere; }
   .section-empty { text-align: center; color: var(--muted); padding: 55px 10px; }
   .detail-skeleton { color: var(--muted); font-size: 12px; }.detail-skeleton .spinner { display: inline-block; margin-right: 8px; vertical-align: middle; }
@@ -253,4 +313,32 @@
   @media (max-width: 1100px) { .detail-actions .btn { width: 30px; padding: 5px; }.detail-actions .btn span { display: none; } }
   @media (max-width: 950px) { .detail-header { padding: 10px 14px 8px; }.detail-body { padding: 10px 14px 14px; }.detail-tabs { padding: 0 14px; } h1 { font-size: 17px; }.fields-toolbar { gap: 8px; }.field-search { width: 230px; } }
   @media (max-width: 480px) { .detail-title-row { gap: 6px; }.table-navigation { gap: 0; }.table-navigation .icon-btn { min-width: 26px; }.detail-actions { gap: 4px; }.fields-toolbar { gap: 6px 10px; }.field-search { flex: 1; min-width: 150px; }.field-options { width: 100%; }.field-options .density-btn { margin-left: auto; } }
+  .embedded .detail-header { display: flex; align-items: center; gap: 10px; padding: 8px 12px 4px; }
+  .embedded .detail-title-row { display: contents; }
+  .embedded .table-identity { flex: 0 1 auto; max-width: 50%; gap: 3px; }
+  .embedded h1 { font-size: 14px; letter-spacing: 0; }
+  .embedded .table-identity .icon-btn { min-width: 22px; min-height: 24px; padding: 3px; }
+  .embedded .detail-meta { flex: 1; margin: 0; gap: 6px; }
+  .embedded .detail-schema { padding-right: 6px; }
+  .embedded .detail-actions { order: 2; gap: 2px; }
+  .embedded .detail-actions .btn { width: 24px; min-height: 24px; padding: 3px; border: 0; background: transparent; box-shadow: none; color: var(--muted); }
+  .embedded .detail-actions .btn:hover { color: var(--accent); background: var(--accent-weak); }
+  .embedded .detail-actions .btn span { display: none; }
+  .embedded .detail-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 0 12px; padding: 0 12px; border-bottom: 1px solid var(--border-weak); }
+  .embedded .detail-tabs { padding: 0; gap: 14px; border-bottom: 0; }
+  .embedded .detail-tabs button { font-size: 11px; padding: 6px 0; gap: 4px; }
+  .embedded .detail-tabs span { background: transparent; padding: 0; }
+  .embedded .fields-toolbar { flex: 1 1 350px; margin: 0; padding: 3px 0; gap: 6px 8px; }
+  .embedded .field-search { flex: 1; width: auto; min-width: 140px; padding: 3px 6px; border-radius: 4px; }
+  .embedded .fields-toolbar label { font-size: 11px; white-space: nowrap; }
+  .embedded .field-options { width: auto; gap: 6px; }
+  .embedded .density-btn { padding: 3px 4px; border: 0; border-radius: 3px; }
+  .embedded .detail-body { padding: 8px 12px 12px; }
+  .embedded .table-scroll { border-radius: 4px; }
+  @media (max-width: 480px) {
+    .embedded .detail-header { flex-wrap: wrap; gap: 2px 8px; }
+    .embedded .table-identity { flex: 1; max-width: calc(100% - 60px); }
+    .embedded .detail-actions { order: 0; }
+    .embedded .detail-meta { flex-basis: 100%; order: 1; }
+  }
 </style>
